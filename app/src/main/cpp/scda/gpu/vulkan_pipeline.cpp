@@ -2,7 +2,7 @@
 // vertex input, keyed and cached the way the Windows build keyed its PSOs, built on threads away from the render
 // thread and warmed from the keys file at a run's start.
 #include "vulkan_internal.h"
-#include "dxgishim.h"
+#include "../platform/dxgishim.h"
 
 #include <algorithm>
 #include <cstring>
@@ -303,6 +303,11 @@ void BuildPipeline(KeyedPipeline& kp) {
 }
 
 }  // namespace
+
+VkPipelineLayout PipelineLayoutFull(const Reflect& vs, const Reflect& ps, std::array<VkDescriptorSetLayout, 4>& sets_out,
+                                    std::vector<ReflectBinding>* out_bindings) {
+    return MakeLayout(vs, ps, sets_out, out_bindings);
+}
 
 VkPipelineLayout PipelineLayoutFrom(const Reflect& vs, const Reflect& ps, std::vector<ReflectBinding>* out) {
     std::array<VkDescriptorSetLayout, 4> sets{};

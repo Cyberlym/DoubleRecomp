@@ -21,7 +21,12 @@
 #define NOMINMAX
 #endif
 #include "../platform/wincompat.h"
+
+#ifdef _WIN32
 #include <xinput.h>
+#else
+#include "../platform/wininput.h"
+#endif
 
 #include <SDL3/SDL.h>
 
@@ -830,8 +835,9 @@ void UpdatePads() {
     if (now == last) return;
     last = now;
     SDL_PumpEvents();
+    // only the pads' own notices: the rest of the queue belongs to the window thread's pump
     SDL_Event e;
-    while (SDL_PeepEvents(&e, 1, SDL_GETEVENT, SDL_EVENT_FIRST, SDL_EVENT_LAST) == 1) {
+    while (SDL_PeepEvents(&e, 1, SDL_GETEVENT, SDL_EVENT_GAMEPAD_ADDED, SDL_EVENT_GAMEPAD_REMOVED) == 1) {
         if (e.type == SDL_EVENT_GAMEPAD_ADDED) AddPad(e.gdevice.which);
         else if (e.type == SDL_EVENT_GAMEPAD_REMOVED) RemovePad(e.gdevice.which);
     }
@@ -1072,6 +1078,33 @@ void OnRawInput(void* handle) {
         Notch(notch);
     } else if (g_menu || g_list) {
         g_menu_wheel += SHORT(m.usButtonData);
+    }
+    if (g_map || g_menu || g_list) return;
+    int vk = notch > 0 ? kWheelUp : kWheelDown;
+    std::lock_guard lock(g_bind_lock);
+    for (size_t i = 0; i < kCount; i++) {
+        if (ZoomOf(i) && std::ranges::find(g_binds[i], vk) != g_binds[i].end()) Notch(ZoomOf(i));
+    }
+}
+
+// the SDL feed's raw mouse: the same counts the Windows raw input carried, any thread that pumps events
+void OnMouseRaw(int dx, int dy, int notch) {
+    // noted while the input is taken too, so a key capture sees the wheel
+    if (notch && g_hwnd && GetForegroundWindow() == g_hwnd) g_wheel_ms[notch < 0] = NowMs();
+    if (!Active()) return;
+    // only the clip: settling would drop a held key that keeps a menu open (quick inventory)
+    if (MapDrag()) Pin();
+    else if (Pointing()) ClipCursor(nullptr);
+    else Clip();
+    if (dx || dy || notch) g_keyboard_ms = NowMs();
+    g_dx += dx;
+    g_dy += dy;
+    if (!notch) return;
+    // the map, menus and the interaction list keep the wheel whatever it is bound to, as the arrows
+    if (g_map) {
+        Notch(notch);
+    } else if (g_menu || g_list) {
+        g_menu_wheel += notch * int(WHEEL_DELTA);
     }
     if (g_map || g_menu || g_list) return;
     int vk = notch > 0 ? kWheelUp : kWheelDown;

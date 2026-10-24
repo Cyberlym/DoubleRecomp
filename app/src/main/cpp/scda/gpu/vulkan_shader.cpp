@@ -135,7 +135,11 @@ bool CompileHlsl(const std::string& src, const char* entry, shaderc_shader_kind 
 
 // the sources by hash, as d3d12.cpp's shader_src_ kept them: a pipeline's key carries only the hashes
 std::mutex g_sources_lock;
-std::unordered_map<uint64_t, std::string> g_sources;
+struct SourceEntry {
+    std::string src;
+    VkShaderStageFlagBits stage;
+};
+std::unordered_map<uint64_t, SourceEntry> g_sources;
 
 struct Module {
     std::mutex lock;
@@ -190,21 +194,22 @@ Module& FindModule(uint64_t hash, const std::string& src, const char* entry, VkS
 
 }  // namespace
 
-void RegisterShaderSource(uint64_t hash, const std::string& src) {
+void RegisterShaderSource(uint64_t hash, const std::string& src, VkShaderStageFlagBits stage) {
     std::lock_guard lock(g_sources_lock);
-    g_sources.emplace(hash, src);
+    g_sources.emplace(hash, SourceEntry{src, stage});
 }
 
 bool EnsureShaderByHash(uint64_t hash, Shader& out, bool compile, bool& pending) {
     std::string src;
+    VkShaderStageFlagBits stage = VK_SHADER_STAGE_FRAGMENT_BIT;
     {
         std::lock_guard lock(g_sources_lock);
         auto it = g_sources.find(hash);
         if (it == g_sources.end()) return false;
-        src = it->second;
+        src = it->second.src;
+        stage = it->second.stage;
     }
-    return EnsureShader(hash, src, "main",
-                        hash & 1 ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_FRAGMENT_BIT, out, compile, pending);
+    return EnsureShader(hash, src, "main", stage, out, compile, pending);
 }
 
 bool EnsureShader(uint64_t hash, const std::string& src, const char* entry, VkShaderStageFlagBits stage, Shader& out,
@@ -289,7 +294,7 @@ bool EnsureBlitShaders() {
     uint64_t phash = Hash(kBlitHlslPs, std::strlen(kBlitHlslPs), 2);
     if (!EnsureShader(vhash, kBlitHlslVs, "main", VK_SHADER_STAGE_VERTEX_BIT, g_blit.vs, true, pending)) return false;
     if (!EnsureShader(phash, kBlitHlslPs, "main", VK_SHADER_STAGE_FRAGMENT_BIT, g_blit.fs, true, pending)) return false;
-    g_blit.layout = PipelineLayoutFrom(g_blit.vs.reflect, g_blit.fs.reflect, &g_blit.bindings);
+    g_blit.layout = PipelineLayoutFull(g_blit.vs.reflect, g_blit.fs.reflect, g_blit.sets, &g_blit.bindings);
     return g_blit.layout != VK_NULL_HANDLE;
 }
 

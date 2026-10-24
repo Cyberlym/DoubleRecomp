@@ -70,8 +70,10 @@ constexpr uint32_t kKernelThunkBase = 0xFE000000;
 
 namespace dispatch {
 
-// the game code DLL and its tables; data comes by name, as the delay loaded imports carry only functions
+// the game code DLL and its tables; data comes by name, as the delay loaded imports carry only functions.
+// On Android/Linux the recompiled code is statically linked: the tables are extern globals from x86_context.h.
 bool Load(const std::filesystem::path& dll) {
+#ifdef _WIN32
     HMODULE m = LoadLibraryW(dll.c_str());
     if (!m) return false;
     g_mappings = reinterpret_cast<const X86FuncMapping*>(GetProcAddress(m, "X86FuncMappings"));
@@ -84,6 +86,15 @@ bool Load(const std::filesystem::path& dll) {
     g_hi = *hi;
     g_entry = *entry;
     return true;
+#else
+    (void)dll;
+    g_mappings = ::X86FuncMappings;
+    g_continuations = ::X86Continuations;
+    g_lo = ::X86CodeBase;
+    g_hi = ::X86CodeEnd;
+    g_entry = ::X86EntryPoint;
+    return g_mappings && g_continuations && g_lo != g_hi;
+#endif
 }
 
 uint32_t EntryPoint() { return g_entry; }

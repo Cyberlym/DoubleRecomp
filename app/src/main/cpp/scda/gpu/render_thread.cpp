@@ -417,6 +417,8 @@ private:
         if (auto set = reinterpret_cast<SetDescription>(
                 reinterpret_cast<void*>(GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"))))
             set(GetCurrentThread(), L"render");
+#elif defined(__ANDROID__) || defined(__linux__)
+        pthread_setname_np(pthread_self(), "render");
 #endif
         for (;;) {
             Batch* b;

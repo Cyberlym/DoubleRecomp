@@ -5,7 +5,7 @@
 
 #include "core/log.h"
 #include "kernel/kernel.h"
-#include "dxgishim.h"
+#include "../platform/dxgishim.h"
 
 namespace gpu {
 

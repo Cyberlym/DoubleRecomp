@@ -2,6 +2,8 @@
 // Winsock names the XNet layer uses, on BSD sockets. Modelled on the XboxXBERecomp harness compat header.
 #ifndef _WIN32
 
+#include "../platform/wincompat.h"
+
 #include <arpa/inet.h>
 #include <cerrno>
 #include <fcntl.h>

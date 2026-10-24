@@ -664,7 +664,10 @@ bool ReadBackImage(Image& img, uint32_t w, uint32_t h, std::vector<uint8_t>& out
 }
 
 void ReleaseFrameGarbage(Frame& f) {
-    for (Image* img : f.garbage_img) DestroyImage(*img);
+    for (Image* img : f.garbage_img) {
+        DestroyImage(*img);
+        delete img;
+    }
     f.garbage_img.clear();
     for (VkBuffer b : f.garbage_buf) vkDestroyBuffer(g_ctx.dev, b, nullptr);
     f.garbage_buf.clear();

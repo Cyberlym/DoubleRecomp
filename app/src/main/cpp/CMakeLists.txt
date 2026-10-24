@@ -3,6 +3,9 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(scda_port LANGUAGES C CXX)
 
+# Enable versus mode (off by default for Android; versus has duplicate symbols with game/)
+option(ENABLE_VERSUS "Enable versus mode (multiplayer/coop)" OFF)
+
 set(SCDA_SDL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/SDL")
 
 # ShaderC for HLSL->SPIR-V compilation (via FetchContent)
@@ -87,9 +90,8 @@ file(GLOB_RECURSE SCDA_SOURCES
 
 # Exclude Windows-specific files
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*menu_rows\\.cpp$")
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*core/input\\.cpp$")        # uses xinput.h
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*core/input\\.cpp$")        # Windows xinput, replaced by input_android.cpp
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*audio/voice_link\\.cpp$")  # uses opus.h
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*cpu/dispatch\\.cpp$")      # uses LoadLibraryW
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/xnet\\.cpp$")          # uses Windows networking APIs
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/bink\\.cpp$")          # uses Windows APIs
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/dsound\\.cpp$")        # uses DirectSound
@@ -98,16 +100,41 @@ list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/communicator\\.cpp$")  # uses Wind
 
 # Collect generated source files (recompiled XBE partitions)
 file(GLOB_RECURSE GENERATED_GAME_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../generated/game/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/*.cpp"
 )
-file(GLOB_RECURSE GENERATED_VERSUS_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../generated/versus/*.cpp"
+
+# the weak aliases (sub_* -> __imp__sub_*) must be compiled in their own unit with X86_ALIAS_UNIT,
+# so every call resolves at link time, strong over the weak (see cpu/x86_ops.h)
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_aliases.cpp"
+    PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1"
+)
+
+if(ENABLE_VERSUS)
+    file(GLOB_RECURSE GENERATED_VERSUS_SOURCES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/versus/*.cpp"
+    )
+else()
+    set(GENERATED_VERSUS_SOURCES "")
+    # Exclude all versus hand-written sources when ENABLE_VERSUS is OFF
+    list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*versus/.*\\.cpp$")
+endif()
+
+# the weak alias trampolines must live in a TU of their own so every call resolves at link time;
+# X86_ALIAS_UNIT makes x86_aliases.cpp emit the weak definitions the ELF link needs (see cpu/x86_ops.h)
+set_source_files_properties(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_aliases.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/versus/x86_aliases.cpp"
+    PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1"
 )
 
 # Platform sources (Android-specific)
 set(PLATFORM_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/platform/app_android.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio_sdl.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/platform/input_android.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/platform/input_state.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/platform/hle_android.cpp"
 )
 
 # Main entry point

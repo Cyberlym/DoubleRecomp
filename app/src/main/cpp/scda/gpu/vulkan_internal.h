@@ -9,7 +9,7 @@
 #define NOMINMAX
 #endif
 #include "../platform/wincompat.h"
-#include "dxgishim.h"
+#include "../platform/dxgishim.h"
 
 #include <vulkan/vulkan.h>
 
@@ -32,6 +32,11 @@
 #include "gpu/vertex.h"
 #include "gpu/pipeline_cache.h"
 #include "kernel/kernel.h"
+
+// set at Init: hands the serialized VkPipelineCache to the runtime's SavePipelineCache (defined in gpu/pipeline_cache.cpp)
+namespace gpu {
+extern void (*CollectPipelineCacheData)(const std::function<bool(const void*, size_t)>&);
+}  // namespace gpu
 
 namespace gpu::vk {
 
@@ -186,11 +191,6 @@ struct Ctx {
 
 extern Ctx g_ctx;
 
-namespace gpu {
-// set at Init: hands the serialized VkPipelineCache to the runtime's SavePipelineCache
-extern void (*CollectPipelineCacheData)(const std::function<bool(const void*, size_t)>&);
-}  // namespace gpu
-
 // vulkan_device.cpp
 bool CreateInstanceAndDevice();
 void DestroyDevice();
@@ -237,13 +237,14 @@ struct Shader {
 };
 bool EnsureShader(uint64_t hash, const std::string& src, const char* entry, VkShaderStageFlagBits stage, Shader& out,
                   bool compile, bool& pending);
-void RegisterShaderSource(uint64_t hash, const std::string& src);
+void RegisterShaderSource(uint64_t hash, const std::string& src, VkShaderStageFlagBits stage);
 bool EnsureShaderByHash(uint64_t hash, Shader& out, bool compile, bool& pending);
 void DestroyShaderCache();
 // the full screen passes' shaders and pipeline layout, built once
 struct BlitShaders {
     Shader vs, fs;
     VkPipelineLayout layout = VK_NULL_HANDLE;
+    std::array<VkDescriptorSetLayout, 4> sets{};
     std::vector<ReflectBinding> bindings;
 };
 extern BlitShaders g_blit;
@@ -291,6 +292,9 @@ struct Pipeline {
 bool EnsurePipeline(const PsoKey& k, bool wait, Pipeline** out, bool& pending);
 void ClearPipelineMap();  // after a device reset: modules stay, pipelines do not
 VkPipelineLayout PipelineLayoutFrom(const Reflect& vs, const Reflect& ps, std::vector<ReflectBinding>* out = nullptr);
+// the same, handing back the per set layouts the descriptor sets allocate from
+VkPipelineLayout PipelineLayoutFull(const Reflect& vs, const Reflect& ps, std::array<VkDescriptorSetLayout, 4>& sets_out,
+                                    std::vector<ReflectBinding>* out_bindings);
 // the full screen blit's pipeline: no vertex input, blending for the premultiplied over case
 VkPipeline BuildBlitPipeline(VkFormat color, bool over);
 
