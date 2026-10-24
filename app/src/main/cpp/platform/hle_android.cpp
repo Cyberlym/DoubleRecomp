@@ -1,45 +1,30 @@
-// Portable HLE for the parts the Android build leaves out: the F10 settings menu (needs Dear ImGui),
-// the Xbox Communicator headset, DirectSound's voice-link mute and XNet's session state.
-// Co-op/system-link networking is deferred until ENABLE_VERSUS; these implementations carry real state
-// where the game reads one and log, once, what is unavailable in this build.
-#include <algorithm>
-#include <atomic>
+// Portable HLE for the parts the Android build leaves out by agreement: no
+// online, no co-op, no versus, no voice. The networking entry points answer
+// "no network", the headset answers "none plugged in", and the wideband voice
+// link never arrives — the solo boot and the front-end menus stay crash-free.
+#include <chrono>
 #include <cstdint>
-#include <cstdio>
 #include <mutex>
 #include <string>
-#include <vector>
 
 #include "app/app.h"
+#include "audio/audio.h"
 #include "core/log.h"
 #include "cpu/x86_context.h"
 #include "xdk/communicator.h"
+#include "xdk/hle.h"
+
+using namespace kernel;
 
 // ---------------------------------------------------------------------------
-// input: the session flags the game side sets and reads (input.h)
-// ---------------------------------------------------------------------------
-namespace input {
-
-static std::atomic<bool> g_net{false};
-static std::atomic<bool> g_training_video{false};
-
-void SetNetSession(bool net) { g_net.store(net); }
-bool NetSession() { return g_net.load(); }
-void SetTrainingVideo(bool on) { g_training_video.store(on); }
-
-}  // namespace input
-
-// ---------------------------------------------------------------------------
-// xnet: session state and the co-op host values. With networking deferred the
-// session flag follows input::NetSession and the host values keep the console
-// defaults (22 Hz tick, 50 ms input delay floor) the settings menu starts at.
+// xnet: the session state the host reads (app_android's pause rule keeps the
+// game running while a session flag is up, so it always says no session here)
 // ---------------------------------------------------------------------------
 namespace xnet {
 
-static std::atomic<bool> g_in_session{false};
+std::atomic<bool> g_in_session{false};
 
 bool InSession() {
-    g_in_session.store(input::NetSession());
     return g_in_session.load();
 }
 
@@ -67,6 +52,77 @@ bool CoopHostValues(uint32_t& rate, uint32_t& floor) {
 }  // namespace xnet
 
 // ---------------------------------------------------------------------------
+// xnet guest entry points: the recompiled XNet code is left out with it, so the
+// functions the solo boot and the front-end menus reach answer "no network"
+// directly: the stack starts, the link is down, no socket ever carries anything.
+// ---------------------------------------------------------------------------
+namespace {
+
+void NoNetwork() {
+    static bool logged = false;
+    if (!logged) {
+        LOGW("xnet: no networking in this Android build, the game stays offline");
+        logged = true;
+    }
+}
+
+uint32_t PseudoRandom() {
+    static std::mutex lock;
+    static uint64_t s = 0x5849482Bull ^ uint64_t(std::chrono::steady_clock::now().time_since_epoch().count());
+    std::lock_guard<std::mutex> hold(lock);
+    s ^= s << 13;
+    s ^= s >> 7;
+    s ^= s << 17;
+    return uint32_t(s >> 32);
+}
+
+}  // namespace
+
+HLE_STDCALL(XNetStartup, 1) {
+    NoNetwork();
+    return 0;
+}
+
+HLE_STDCALL(WSAStartup, 2) {
+    NoNetwork();
+    if (a[1]) {
+        std::memset(HostPtr(a[1]), 0, 400);
+        W32(a[1], 0x02020202);  // wVersion, wHighVersion
+    }
+    return 0;
+}
+
+HLE_STDCALL(WSAGetLastError, 0) { return 10050; }  // WSAENETDOWN
+
+HLE_STDCALL(XNetGetEthernetLinkStatus, 0) {
+    NoNetwork();
+    return 0;  // XNET_LINK_DISCONNECTED: no cable, the system-link menus stay greyed
+}
+
+HLE_STDCALL(XOnlineStartup, 1) {
+    NoNetwork();
+    return 0;
+}
+
+HLE_STDCALL(XOnlineCleanup, 0) { return 0; }
+
+HLE_STDCALL(XNetRandom, 2) {
+    for (uint32_t i = 0; i < a[1]; i++) G<uint8_t>(a[0] + i) = uint8_t(PseudoRandom());
+    return 0;
+}
+
+HLE_STDCALL(XNetCreateKey, 2) {
+    for (uint32_t i = 0; i < 8; i++) G<uint8_t>(a[0] + i) = uint8_t(PseudoRandom());
+    for (uint32_t i = 0; i < 16; i++) G<uint8_t>(a[1] + i) = uint8_t(PseudoRandom());
+    G<uint8_t>(a[0]) &= 0x0F;
+    return 0;
+}
+
+HLE_STDCALL(XNetRegisterKey, 2) { return 0; }
+
+HLE_STDCALL(XNetUnregisterKey, 1) { return 0; }
+
+// ---------------------------------------------------------------------------
 // communicator: a phone has no Xbox Communicator headset hardware. Refresh
 // leaves the image's device records as they are (nothing to add) and Create
 // answers false for every type, the "no headset has this type" the header
@@ -89,62 +145,20 @@ bool Create(X86Context& /*ctx*/, const Types& /*types*/) {
 }  // namespace communicator
 
 // ---------------------------------------------------------------------------
-// dsound: the voice link's mute marks a stream so the wideband voice (also
-// deferred here) would take it over; with no voice link there is nothing to
-// mark, the SDL mixer keeps playing the stream as it is.
+// audio: the wideband voice link (voice_link.cpp, left out with the networking)
+// never starts, so its voice never arrives: the game's own copy of a talker's
+// voice keeps playing. dsound::MuteForVoiceLink keeps its real implementation in
+// dsound.cpp; the mark only silences a stream while link voice is being heard.
 // ---------------------------------------------------------------------------
-namespace dsound {
+namespace audio {
 
-void MuteForVoiceLink(uint32_t /*stream*/) {
+bool VoiceLinkHeard() {
     static bool logged = false;
     if (!logged) {
-        LOGI("dsound: voice link deferred, streams keep their own audio");
+        LOGI("audio: no voice link in this Android build, the game's own voice plays");
         logged = true;
     }
+    return false;
 }
 
-}  // namespace dsound
-
-// ---------------------------------------------------------------------------
-// app::rows / app::SettingsRevision: the F10 settings menu needs Dear ImGui,
-// which this Android build does not link (the menu comes with the touch UI).
-// The game code polls these for the panel's contents; with no panel there are
-// no rows to show and settings only change from the game's own pages.
-// ---------------------------------------------------------------------------
-namespace app {
-
-uint32_t SettingsRevision() {
-    return 0;  // nothing outside the game's own pages changes settings in this build
-}
-
-// MenuOpen lives in platform/app_android.cpp; ToggleMenu below is the only menu entry point here
-void ToggleMenu() {
-    static bool logged = false;
-    if (!logged) {
-        LOGW("app: the F10 settings menu is not part of this Android build (waiting on the touch UI)");
-        logged = true;
-    }
-}
-
-namespace rows {
-
-const Row* Page(int /*page*/, size_t* count) {
-    *count = 0;
-    return nullptr;
-}
-
-std::string Value(const Row& /*row*/) { return {}; }
-void Step(const Row& /*row*/, int /*step*/) {}
-void Defaults(int /*page*/) {}
-
-std::vector<std::string> Choices(const Row& /*row*/, int* current) {
-    *current = 0;
-    return {};
-}
-void Choose(const Row& /*row*/, int /*index*/) {}
-
-bool Shown(const Row& /*row*/) { return false; }
-bool Enabled(const Row& /*row*/) { return false; }
-
-}  // namespace rows
-}  // namespace app
+}  // namespace audio

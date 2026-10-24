@@ -220,8 +220,11 @@ inline BOOL CloseFileHandle(HANDLE h) {
 namespace winhost {
 constexpr int kMaxVk = 256;
 extern std::atomic<uint8_t> g_vk[kMaxVk];
-}
+// the window the game draws in, what GetForegroundWindow reports once the SDL focus events say so
+inline std::atomic<void*> g_foreground{reinterpret_cast<void*>(1)};
+}  // namespace winhost
 inline short GetAsyncKeyState(int vk) { return vk >= 0 && vk < winhost::kMaxVk && winhost::g_vk[vk].load() ? -1 : 0; }
+inline HWND GetForegroundWindow() { return static_cast<HWND>(winhost::g_foreground.load()); }
 
 inline HMODULE GetModuleHandleW(const wchar_t*) { return (HMODULE)(intptr_t)1; }
 inline HMODULE LoadLibraryW(const wchar_t* path) {
@@ -245,7 +248,6 @@ inline void SetCursor(void*) {}
 inline void ShowCursor(BOOL) {}
 inline BOOL SetProcessDPIAware() { return TRUE; }
 inline HCURSOR LoadCursorW(void*, const wchar_t*) { return nullptr; }
-inline HWND GetForegroundWindow() { return (HWND)(intptr_t)1; }
 inline HANDLE GetCurrentThread() { return (HANDLE)(intptr_t)2; }
 inline BOOL PostMessageW(HWND, UINT, UINT_PTR, LONG_PTR) { return TRUE; }
 

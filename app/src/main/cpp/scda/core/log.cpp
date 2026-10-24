@@ -10,6 +10,10 @@
 #include <thread>
 #include <vector>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 namespace fs = std::filesystem;
 
 namespace logx {
@@ -71,6 +75,14 @@ void Write(Level lv, const char* fmt, ...) {
         if (lv >= Level::Warn) std::fflush(g_file);
     }
     std::fwrite(line, 1, size_t(n), stderr);
+#ifdef __ANDROID__
+    // stderr of an Android app goes nowhere unless redirected; logcat under "scda" is the diagnostic channel
+    android_LogPriority prio = ANDROID_LOG_VERBOSE;
+    if (lv == Level::Warn) prio = ANDROID_LOG_WARN;
+    if (lv == Level::Error) prio = ANDROID_LOG_ERROR;
+    line[n > 0 && line[n - 1] == '\n' ? n - 1 : n] = 0;
+    __android_log_print(prio, "scda", "%s", line);
+#endif
 }
 
 void Flush() {

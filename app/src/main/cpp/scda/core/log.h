@@ -17,7 +17,11 @@ void Write(Level lv, const char* fmt, ...) __attribute__((format(printf, 2, 3)))
 void Flush();
 const std::string& Path();
 
-#ifdef NDEBUG
+#if defined(__ANDROID__)
+// the phone is the only diagnostic channel: the boot markers and the stages go through
+// LOGI, a release build on Android keeps them
+inline constexpr bool kVerbose = true;
+#elif defined(NDEBUG)
 inline constexpr bool kVerbose = false;
 #else
 inline constexpr bool kVerbose = true;

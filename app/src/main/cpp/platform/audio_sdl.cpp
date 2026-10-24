@@ -10,6 +10,7 @@
 
 #include "audio/output.h"
 #include "core/log.h"
+#include "platform/boot_stage.h"
 
 namespace audio {
 
@@ -93,6 +94,7 @@ void OpenStream() {
         return;
     }
     SDL_ResumeAudioStreamDevice(g_stream);
+    stage::Record("audio_ready");
 }
 
 }  // namespace

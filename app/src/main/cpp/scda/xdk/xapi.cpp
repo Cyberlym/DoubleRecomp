@@ -2,6 +2,7 @@
 #include <chrono>
 
 #include "core/input.h"
+#include "platform/boot_stage.h"
 #include "xdk/hle.h"
 
 using namespace kernel;
@@ -64,6 +65,12 @@ HLE_STDCALL(XInitDevices, 2) {
 
 HLE_STDCALL(XInputOpen, 4) {
     uint32_t type = a[0], port = a[1];
+    static bool opened = false;  // the game opens its ports once the title is up
+    if (!opened) {
+        opened = true;
+        stage::Record("input_ready");
+        LOGI("xapi: the game opened its first controller port");
+    }
     if (type != kGamepadType || port > 3) return 0;
     uint32_t h = mem::AllocSystem(16);
     std::lock_guard<std::mutex> lock(g_ports_lock);

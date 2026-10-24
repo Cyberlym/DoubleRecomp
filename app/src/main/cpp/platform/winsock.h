@@ -17,14 +17,13 @@
 #include <cstdint>
 #include <thread>
 
+// DWORD and WORD, the wincompat names (the winsock shim would otherwise redefine them)
+#include "wincompat.h"
+
 typedef int SOCKET;
-typedef uint32_t DWORD;
-typedef uint16_t WORD;
 typedef unsigned long u_long;
 #define INVALID_SOCKET (-1)
 #define SOCKET_ERROR (-1)
-#define FALSE 0
-#define TRUE 1
 #define MAKEWORD(a, b) ((WORD)(((a) & 0xff) | (((b) & 0xff) << 8)))
 #define SOCKET_FUNCS_
 struct WSADATA {
@@ -61,7 +60,7 @@ enum {
     WSAEMSGSIZE = 10040,
     WSANOTINITIALISED = 10093,
 };
-constexpr DWORD kUdpConnReset = -3;  // SIO_UDP_CONNRESET, mapped to nothing on POSIX
+constexpr DWORD kSioUdpConnResetPosix = -3;  // SIO_UDP_CONNRESET, mapped to nothing on POSIX
 
 inline int WSAGetLastError() {
     switch (errno) {
@@ -79,7 +78,7 @@ inline int WSAGetLastError() {
 inline int WSAStartup(WORD, WSADATA*) { return 0; }
 inline int WSACleanup() { return 0; }
 inline int closesocket(SOCKET s) { return close(s); }
-inline int WSAIoctl(SOCKET, DWORD, void*, DWORD, void*, DWORD, DWORD*, void*, void*) { return 0; }
+inline int WSAIoctl(SOCKET, DWORD, void*, DWORD, void*, DWORD, int*, void*, void*) { return 0; }
 inline int WSACancelOverlappedIO(SOCKET) { return 0; }
 inline int WSAGetOverlappedResult(SOCKET, WSAOVERLAPPED*, DWORD*, BOOL, DWORD*) { return 0; }
 

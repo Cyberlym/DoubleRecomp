@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Baseado no AndroidManifest oficial da SDL3 (android-project), com a
-     Activity substituida pela subclasse que carrega libscda_port.so. -->
+<!-- Baseado no AndroidManifest oficial da SDL3 (android-project): a Activity do
+     jogo (ScdaActivity) mantem seu ciclo de vida intocado; a entrada do app e a
+     LauncherActivity, que instala a ISO e inicia o jogo com o caminho por extra. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:versionCode="1"
-    android:versionName="0.1.0-stage1"
     android:installLocation="auto">
 
-    <!-- Renderizacao: o renderer da SDL3 usa OpenGL ES no Android. -->
     <uses-feature android:glEsVersion="0x00020000" />
 
-    <!-- Toque -->
     <uses-feature
         android:name="android.hardware.touchscreen"
         android:required="false" />
 
-    <!-- Controle de jogo (para o port futuro) -->
     <uses-feature
         android:name="android.hardware.bluetooth"
         android:required="false" />
@@ -26,6 +22,10 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- a copia da ISO roda em foreground service, o sistema nao a mata -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="@string/app_name"
@@ -35,24 +35,48 @@
         android:enableOnBackInvokedCallback="false"
         android:hardwareAccelerated="true">
 
-        <!-- ScdaActivity (com.tgp482.scda) apenas informa a SDL3 que a biblioteca
-             principal do app e "scda_port" (getLibraries() -> SDL3, scda_port). -->
+        <!-- a porta de entrada: estado do jogo, instalador da ISO, opcoes, logs -->
         <activity
-            android:name="com.tgp482.scda.ScdaActivity"
+            android:name="com.tgp482.scda.LauncherActivity"
             android:label="@string/app_name"
-            android:alwaysRetainTaskState="true"
-            android:launchMode="singleInstance"
-            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
-            android:preferMinimalPostProcessing="true"
+            android:screenOrientation="sensorLandscape"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+
+        <!-- opcoes do runtime (scda.toml) e logs, na mesma janela da launcher -->
+        <activity
+            android:name="com.tgp482.scda.OptionsActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="false" />
+        <activity
+            android:name="com.tgp482.scda.LogsActivity"
+            android:screenOrientation="sensorLandscape"
+            android:exported="false" />
+
+        <!-- o jogo: a casca nativa, ciclo de vida da SDLActivity intocado -->
+        <activity
+            android:name="com.tgp482.scda.ScdaActivity"
+            android:label="@string/app_name"
+            android:alwaysRetainTaskState="true"
+            android:launchMode="singleInstance"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="layoutDirection|locale|grammaticalGender|fontScale|fontWeightAdjustment|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:preferMinimalPostProcessing="true"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
         </activity>
+
+        <!-- a copia da ISO com notificacao de progresso -->
+        <service
+            android:name="com.tgp482.scda.InstallService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

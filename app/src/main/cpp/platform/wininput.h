@@ -4,6 +4,8 @@
 // Windows builds keep the real headers; this goes after wincompat.h.
 #ifndef _WIN32
 
+#include <SDL3/SDL.h>
+
 #include <algorithm>
 #include <cstring>
 
@@ -11,7 +13,8 @@
 constexpr int VK_LBUTTON = 0x01, VK_RBUTTON = 0x02, VK_MBUTTON = 0x04, VK_XBUTTON1 = 0x05, VK_XBUTTON2 = 0x06;
 constexpr int VK_BACK = 0x08, VK_TAB = 0x09, VK_RETURN = 0x0D, VK_SHIFT = 0x10, VK_CONTROL = 0x11, VK_MENU = 0x12;
 constexpr int VK_PAUSE = 0x13, VK_CAPITAL = 0x14, VK_ESCAPE = 0x1B, VK_SPACE = 0x20, VK_SNAPSHOT = 0x2C;
-constexpr int VK_END = 0x23, VK_HOME = 0x24, VK_LEFT = 0x25, VK_UP = 0x26, VK_RIGHT = 0x27, VK_DOWN = 0x28;
+constexpr int VK_END = 0x23, VK_HOME = 0x24, VK_PRIOR = 0x21, VK_NEXT = 0x22;
+constexpr int VK_LEFT = 0x25, VK_UP = 0x26, VK_RIGHT = 0x27, VK_DOWN = 0x28;
 constexpr int VK_INSERT = 0x2D, VK_DELETE = 0x2E;
 constexpr int VK_LWIN = 0x5B, VK_RWIN = 0x5C, VK_APPS = 0x5D, VK_NUMPAD0 = 0x60, VK_NUMPAD1 = 0x61,
               VK_NUMPAD2 = 0x62, VK_NUMPAD3 = 0x63, VK_NUMPAD4 = 0x64, VK_NUMPAD5 = 0x65, VK_NUMPAD6 = 0x66,
@@ -23,7 +26,7 @@ constexpr int VK_NUMLOCK = 0x90, VK_SCROLL = 0x91;
 constexpr int VK_LSHIFT = 0xA0, VK_RSHIFT = 0xA1, VK_LCONTROL = 0xA2, VK_RCONTROL = 0xA3, VK_LMENU = 0xA4,
               VK_RMENU = 0xA5;
 constexpr int VK_OEM_COMMA = 0xBC, VK_OEM_MINUS = 0xBD, VK_OEM_PERIOD = 0xBE, VK_OEM_1 = 0xBA, VK_OEM_2 = 0xBF,
-              VK_OEM_3 = 0xC0, VK_OEM_4 = 0xDB, VK_OEM_5 = 0xDC, VK_OEM_6 = 0xDD, VK_OEM_7 = 0xDE;
+              VK_OEM_3 = 0xC0, VK_OEM_4 = 0xDB, VK_OEM_5 = 0xDC, VK_OEM_6 = 0xDD, VK_OEM_7 = 0xDE, VK_OEM_PLUS = 0xBB;
 constexpr int VK_BROWSER_BACK = 0xA6, VK_BROWSER_FORWARD = 0xA7, VK_LAUNCH_APP2 = 0xB7;
 
 // ---- window and mouse messages, the cursor refresh asks for them by name ----
@@ -43,7 +46,7 @@ constexpr BYTE XINPUT_GAMEPAD_TRIGGER_THRESHOLD = 30;
 struct XINPUT_GAMEPAD {
     WORD wButtons = 0;
     BYTE bLeftTrigger = 0, bRightTrigger = 0;
-    SHORT sThumbLX = 0, sThumbLY = 0, sThumbRX = 0, sThumbRY = 0;
+    short sThumbLX = 0, sThumbLY = 0, sThumbRX = 0, sThumbRY = 0;
 };
 struct XINPUT_STATE {
     uint32_t dwPacketNumber = 0;
@@ -55,6 +58,7 @@ struct XINPUT_VIBRATION {
 
 // ---- keyboard layout: the Android feed delivers virtual key codes directly, no per layout mapping ----
 typedef void* HKL;
+typedef short SHORT;
 constexpr UINT MAPVK_VK_TO_VSC = 1, MAPVK_VSC_TO_VK_EX = 3, MAPVK_VK_TO_CHAR = 2;
 inline HKL GetKeyboardLayout(uint32_t) { return nullptr; }
 inline uint32_t GetWindowThreadProcessId(HWND, uint32_t*) { return 0; }

@@ -180,6 +180,18 @@ std::span<const Port> PlayerChoices(int player) {
     return player == 0 ? std::span<const Port>(kPlayer1Choices) : std::span<const Port>(kPlayer2Choices);
 }
 
+// an unplugged controller is left out, unless the player has it now, and so is a choice SetPlayer refuses
+std::vector<Port> PlayerList(const Settings& s, int player) {
+    std::vector<Port> out;
+    for (const Port& c : PlayerChoices(player)) {
+        bool current = SamePort(c, s.players[player]);
+        bool plugged = c.pad < 0 || current || input::PadConnected(c.pad);
+        Settings test = s;
+        if (plugged && (current || SetPlayer(test, player, c))) out.push_back(c);
+    }
+    return out;
+}
+
 void StepPlayer(Settings& s, int player, int step) {
     std::span<const Port> choices = PlayerChoices(player);
     int count = int(choices.size());
@@ -649,6 +661,8 @@ std::string ChoiceText(const Settings& s, int player, const Port& c) {
 
 // label left, a drop-down list of the player's choices where the value sits: stepping through them would hand
 // devices back and forth between the players on the way
+}  // namespace
+
 bool MenuOpen() { return g_open.load(std::memory_order_relaxed); }
 
 uint32_t SettingsRevision() { return g_revision; }

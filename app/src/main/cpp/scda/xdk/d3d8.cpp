@@ -219,7 +219,9 @@ HLE_STDCALL(Direct3D_CreateDevice, 6) {
     }
     if (!g_backend) {
         g_backend = gpu::CreateBackend();
-        if (!g_backend->Init(w, h)) LOGE("d3d: renderer init failed");
+        bool up = g_backend->Init(w, h);
+        gpu::g_backend_state = up ? 1 : 2;
+        if (!up) LOGE("d3d: renderer init failed");
         g_backend = gpu::CreateThreadedBackend(std::move(g_backend));
     }
     g_state = gpu::State{};

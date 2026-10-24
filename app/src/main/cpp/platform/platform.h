@@ -7,6 +7,10 @@ namespace platform {
 
 // the SDL window the game renders into, set before kernel::Boot
 void SetWindow(void* window);
+// the input feed ties the focus and the foreground to the same window
+void SetInputWindow(void* window);
+// the display's high rate when the frame rate is unlocked or over 60 (API 30+), called after the settings load
+void SetFrameRate();
 void* WindowHandle();
 
 // a graceful end-of-run request from the UI (the game's exit menu calls kernel::Shutdown directly)

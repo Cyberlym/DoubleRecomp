@@ -465,7 +465,7 @@ private:
             case Op::Draw: inner_->Draw(state_, c.a, c.b, c.c, c.d ? data : nullptr); break;
             case Op::Clear: inner_->Clear(state_, c.a, c.size ? data : nullptr, c.b, c.c, c.f, c.d); break;
             case Op::Copy: inner_->Copy(c.s1, c.s2, c.a, c.b, c.c); break;
-            case Op::Present: inner_->Present(c.s1, c.a != 0); break;
+            case Op::Present: inner_->Present(c.s1, c.a != 0); gpu::g_presents.fetch_add(1); break;
             case Op::Sync: inner_->Sync(c.a, 0); break;
             case Op::RecordLate: inner_->RecordLate(c.a); break;
             case Op::Flush: inner_->Flush(); break;

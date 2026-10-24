@@ -54,11 +54,23 @@ bool FindGame(GameFiles& game) {
         return false;
     }
 
+    // every image under the game folder, the launcher installing one per subfolder
     std::vector<fs::path> isos;
-    for (auto& e : fs::directory_iterator(dir, ec)) {
-        std::string ext = e.path().extension().string();
+    auto take = [&](const fs::path& p) {
+        std::string ext = p.extension().string();
         std::transform(ext.begin(), ext.end(), ext.begin(), [](char c) { return char(std::tolower(uint8_t(c))); });
-        if (ext == ".iso" && e.is_regular_file(ec)) isos.push_back(e.path());
+        if (ext == ".iso" && fs::is_regular_file(p, ec)) isos.push_back(p);
+    };
+    for (auto& e : fs::directory_iterator(dir, ec)) {
+        if (e.is_regular_file(ec)) {
+            take(e.path());
+        } else if (e.is_directory(ec)) {
+            std::string name = e.path().filename().string();
+            if (!name.empty() && name[0] == '.') continue;  // the installer's staging folder
+            std::error_code sub_ec;
+            for (auto& s : fs::directory_iterator(e.path(), sub_ec))
+                if (s.is_regular_file(sub_ec)) take(s.path());
+        }
     }
     std::sort(isos.begin(), isos.end());
 

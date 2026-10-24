@@ -182,7 +182,7 @@ uint32_t PrimaryAddress() {
     to.sin_port = htons(53);
     to.sin_addr.s_addr = htonl(0x08080808);  // no packet is sent: connect only picks the route
     sockaddr_in me{};
-    int len = sizeof(me);
+    socklen_t len = sizeof(me);
     if (s != INVALID_SOCKET && ::connect(s, reinterpret_cast<sockaddr*>(&to), sizeof(to)) == 0 &&
         ::getsockname(s, reinterpret_cast<sockaddr*>(&me), &len) == 0 && me.sin_addr.s_addr)
         addr = me.sin_addr.s_addr;
@@ -247,7 +247,7 @@ std::vector<Span> Spans(uint32_t bufs, uint32_t count) {
 int Recv(uint32_t sock, SOCKET s, const std::vector<Span>& spans, uint32_t from, uint32_t fromlen, int& err) {
     thread_local std::vector<uint8_t> buf(65536);
     sockaddr_in src{};
-    int sl = sizeof(src);
+    socklen_t sl = sizeof(src);
     int n;
     for (;;) {
         sl = sizeof(src);
@@ -475,18 +475,11 @@ bool InSession() {
 void SetCoopHost(bool (*host)(uint32_t& rate, uint32_t& floor)) { g_coop_host = host; }
 
 bool CoopHostValues(uint32_t& rate, uint32_t& floor) {
-    // a relaunch brings the values its predecessor had (--coop-host=rate,floor)
-    static std::once_flag carried;
-    std::call_once(carried, [] {
-        const wchar_t* p = std::wcsstr(GetCommandLineW(), L"--coop-host=");
-        unsigned r = 0, f = 0;
-        if (p && std::swscanf(p + 12, L"%u,%u", &r, &f) == 2 && !g_coop_values) StoreCoop(r, f);
-    });
-    uint64_t v = g_coop_values;
-    if (!v) return false;
-    rate = uint32_t(v >> 32) & 0x7FFFFFFF;
-    floor = uint32_t(v);
-    return true;
+    // a relaunch brings the values its predecessor had (--coop-host=rate,floor); no command line on Android, the
+    // shell hands them to the next instance another way when it ever relaunches
+    (void)rate;
+    (void)floor;
+    return false;
 }
 
 void CloseSockets() {
@@ -600,7 +593,7 @@ static uint32_t AddSocket(SOCKET s, bool udp, bool vdp = false) {
     ::ioctlsocket(s, FIONBIO, &on);
     if (udp) {
         BOOL off = FALSE;
-        DWORD ret = 0;
+        int ret = 0;
         WSAIoctl(s, kUdpConnReset, &off, sizeof(off), nullptr, 0, &ret, nullptr, nullptr);
     }
     std::lock_guard<std::mutex> lock(g_lock);
@@ -671,7 +664,7 @@ HLE_STDCALL(getsockname, 3) {
     Socket k = Find(a[0]);
     if (k.s == INVALID_SOCKET) return Fail(WSAENOTSOCK);
     sockaddr_in me{};
-    int len = sizeof(me);
+    socklen_t len = sizeof(me);
     if (::getsockname(k.s, reinterpret_cast<sockaddr*>(&me), &len) != 0) return Fail(HostError());
     std::memcpy(HostPtr(a[1]), &me, sizeof(me));
     W32(a[2], sizeof(me));
@@ -689,7 +682,7 @@ HLE_STDCALL(bind, 3) {
     }
     LOGI("xnet: bind %X to %s", a[0], Addr(at).c_str());
     sockaddr_in me{};
-    int len = sizeof(me);
+    socklen_t len = sizeof(me);
     ::getsockname(k.s, reinterpret_cast<sockaddr*>(&me), &len);
     std::lock_guard<std::mutex> lock(g_lock);
     if (auto it = g_sockets.find(a[0]); it != g_sockets.end()) it->second.port = me.sin_port;
@@ -703,7 +696,8 @@ HLE_STDCALL(connect, 3) {
     int e = HostError();
     if (e != WSAEWOULDBLOCK || k.nonblocking) return Fail(e);
     if (!Wait(k.s, true, 10000)) return Fail(WSAETIMEDOUT);
-    int err = 0, len = sizeof(err);
+    int err = 0;
+    socklen_t len = sizeof(err);
     ::getsockopt(k.s, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
     return err ? Fail(err) : 0;
 }
@@ -717,7 +711,7 @@ HLE_STDCALL(accept, 3) {
         Socket k = Find(a[0]);
         if (k.s == INVALID_SOCKET) return Fail(WSAENOTSOCK);
         sockaddr_in from{};
-        int len = sizeof(from);
+        socklen_t len = sizeof(from);
         SOCKET s = ::accept(k.s, reinterpret_cast<sockaddr*>(&from), &len);
         if (s != INVALID_SOCKET) {
             if (a[1]) std::memcpy(HostPtr(a[1]), &from, sizeof(from));

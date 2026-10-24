@@ -1,75 +1,16 @@
-# SCDA Port - Native Android ARM64 build
-# Builds libscda_port.so with SDL3, the recompiled runtime, and Vulkan backend
+# SCDA Port - native Android ARM64 build.
+# One shared library: the runtime (kernel, HLE, the Vulkan backend), the recompiled game code
+# (generated/game), and SDL3, linked into libscda_port.so, which SDLActivity loads for SDL_main().
 cmake_minimum_required(VERSION 3.22.1)
 project(scda_port LANGUAGES C CXX)
 
-# Enable versus mode (off by default for Android; versus has duplicate symbols with game/)
-option(ENABLE_VERSUS "Enable versus mode (multiplayer/coop)" OFF)
-
 set(SCDA_SDL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/SDL")
-
-# ShaderC for HLSL->SPIR-V compilation (via FetchContent)
-include(FetchContent)
-
-# SPIRV-Headers (required by SPIRV-Tools)
-FetchContent_Declare(spirv-headers
-    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Headers
-    GIT_TAG vulkan-sdk-1.4.363.0
-    GIT_SHALLOW TRUE
-)
-
-# SPIRV-Tools (required by shaderc)
-set(SPIRV_TOOLS_BUILD_STATIC ON CACHE BOOL "" FORCE)
-set(SPIRV_TOOLS_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(SPIRV_TOOLS_INSTALL OFF CACHE BOOL "" FORCE)
-set(SPIRV_TOOLS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(spirv-tools
-    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Tools
-    GIT_TAG vulkan-sdk-1.4.363.0
-    GIT_SHALLOW TRUE
-)
-
-# glslang (required by shaderc)
-set(GLSLANG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLSLANG_INSTALL OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(glslang
-    GIT_REPOSITORY https://github.com/KhronosGroup/glslang
-    GIT_TAG vulkan-sdk-1.4.363.0
-    GIT_SHALLOW TRUE
-)
-
-# ShaderC
-set(SHADERC_SKIP_INSTALL ON CACHE BOOL "" FORCE)
-set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
-set(SHADERC_SKIP_COPYRIGHT_CHECK ON CACHE BOOL "" FORCE)
-set(SHADERC_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)
-FetchContent_Declare(shaderc
-    GIT_REPOSITORY https://github.com/google/shaderc
-    GIT_TAG v2025.5
-    GIT_SHALLOW TRUE
-)
-
-# toml++ for settings
-FetchContent_Declare(tomlplusplus
-    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
-    GIT_TAG v3.4.0
-    GIT_SHALLOW TRUE
-)
-
-# Opus for voice chat
-set(OPUS_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
-set(OPUS_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(OPUS_INSTALL_PKG_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
-set(OPUS_INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
-set(OPUS_STACK_PROTECTOR OFF CACHE BOOL "" FORCE)
-set(OPUS_FORTIFY_SOURCE OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(opus
-    GIT_REPOSITORY https://github.com/xiph/opus.git
-    GIT_TAG v1.5.2
-    GIT_SHALLOW TRUE
-)
-
-FetchContent_MakeAvailable(spirv-headers spirv-tools glslang shaderc tomlplusplus opus)
+# shaderc built once from the NDK's own sources (sources/third_party/shaderc), no repository fetched
+get_filename_component(NDK_DIR "${CMAKE_ANDROID_NDK}" ABSOLUTE)
+set(SHADERC_ROOT "${NDK_DIR}/sources/third_party/shaderc")
+set(SCDA_SHADERC_DIR "${SCDA_SHADERC_DIR}" CACHE PATH
+    "shaderc's NDK build: libshaderc.a and libshaderc/include")
+set(SCDA_TOMLPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/tomlplusplus")
 
 # SDL configuration: shared library only, no tests/examples
 set(SDL_SHARED ON CACHE BOOL "" FORCE)
@@ -79,144 +20,109 @@ set(SDL_TESTS OFF CACHE BOOL "" FORCE)
 set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(SDL_ANDROID_JAR OFF CACHE BOOL "" FORCE)
 set(SDL_DISABLE_INSTALL ON CACHE BOOL "" FORCE)
-
 add_subdirectory("${SCDA_SDL_DIR}" sdl3-build EXCLUDE_FROM_ALL)
 
-# Collect all scda source files
-file(GLOB_RECURSE SCDA_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/scda/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/scda/**/*.cpp"
-)
-
-# Exclude Windows-specific files
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*menu_rows\\.cpp$")
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*core/input\\.cpp$")        # Windows xinput, replaced by input_android.cpp
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*audio/voice_link\\.cpp$")  # uses opus.h
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/xnet\\.cpp$")          # uses Windows networking APIs
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/bink\\.cpp$")          # uses Windows APIs
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/dsound\\.cpp$")        # uses DirectSound
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/xapi\\.cpp$")          # uses Windows APIs
-list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/communicator\\.cpp$")  # uses Windows networking
-
-# Collect generated source files (recompiled XBE partitions)
-file(GLOB_RECURSE GENERATED_GAME_SOURCES
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/*.cpp"
-)
-
-# the weak aliases (sub_* -> __imp__sub_*) must be compiled in their own unit with X86_ALIAS_UNIT,
-# so every call resolves at link time, strong over the weak (see cpu/x86_ops.h)
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_aliases.cpp"
-    PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1"
-)
-
-if(ENABLE_VERSUS)
-    file(GLOB_RECURSE GENERATED_VERSUS_SOURCES
-        "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/versus/*.cpp"
-    )
-else()
-    set(GENERATED_VERSUS_SOURCES "")
-    # Exclude all versus hand-written sources when ENABLE_VERSUS is OFF
-    list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*versus/.*\\.cpp$")
-endif()
-
-# the weak alias trampolines must live in a TU of their own so every call resolves at link time;
-# X86_ALIAS_UNIT makes x86_aliases.cpp emit the weak definitions the ELF link needs (see cpu/x86_ops.h)
-set_source_files_properties(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_aliases.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/versus/x86_aliases.cpp"
-    PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1"
-)
-
-# Platform sources (Android-specific)
-set(PLATFORM_SOURCES
+# the runtime's sources: the host the recompiled game calls
+set(RUNTIME_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/platform/app_android.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/platform/audio_sdl.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/platform/input_android.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/platform/input_state.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/platform/boot_stage.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/platform/hle_android.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/platform/input_sdl.cpp"
 )
 
-# Main entry point
-set(MAIN_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+file(GLOB SCDA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/scda/*/*.cpp")
+# out by agreement: no online, no co-op, no versus, no voice. The minimal no-network and
+# no-headset answers the solo boot needs live in platform/hle_android.cpp
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*audio/voice_link\\.cpp$")
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/xnet\\.cpp$")
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/communicator\\.cpp$")
+# versus is its own image (sc4_adv.xbe) and this build carries the story one only
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*versus/.*\\.cpp$")
+list(APPEND RUNTIME_SOURCES ${SCDA_SOURCES})
 
-# All sources combined
-set(ALL_SOURCES
-    ${MAIN_SOURCE}
-    ${PLATFORM_SOURCES}
-    ${SCDA_SOURCES}
-    ${GENERATED_GAME_SOURCES}
-    ${GENERATED_VERSUS_SOURCES}
+# the recompiled game code: the partitions, the mappings and the weak alias unit the ELF overrides need
+file(GLOB GENERATED_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_recomp.*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_func_mapping.cpp"
 )
+set(ALIASES_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_aliases.cpp")
+# the aliases live in a unit of their own (see cpu/x86_ops.h): no caller shares it, so every call
+# resolves at link time, strong over the weak
+set_source_files_properties(${ALIASES_SOURCE} PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1")
 
-# Main library: exports SDL_main() loaded by SDLActivity
-add_library(scda_port SHARED ${ALL_SOURCES})
+add_library(scda_port SHARED ${RUNTIME_SOURCES} ${GENERATED_SOURCES} ${ALIASES_SOURCE})
 
 target_compile_features(scda_port PRIVATE cxx_std_20)
 
-# Include directories - use absolute paths to ensure generated headers are found
-set(GENERATED_GAME_DIR "/workspaces/DoubleRecomp/generated/game")
-set(GENERATED_VERSUS_DIR "/workspaces/DoubleRecomp/generated/versus")
-
-# Include directories
+set(GENERATED_GAME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game")
 target_include_directories(scda_port PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/platform"
     "${CMAKE_CURRENT_SOURCE_DIR}/scda"
     "${GENERATED_GAME_DIR}"
-    "${GENERATED_VERSUS_DIR}"
-    "${CMAKE_CURRENT_SOURCE_DIR}/platform"
     "${SCDA_SDL_DIR}/include"
-    "${shaderc_SOURCE_DIR}/libshaderc/include"
-    "${tomlplusplus_SOURCE_DIR}/include"
+    "${SCDA_TOMLPP_DIR}"
 )
 
-target_link_libraries(scda_port PRIVATE
-    SDL3::SDL3
-    log
-    android
-    vulkan
-    EGL
-    GLESv3
-    shaderc_shared
-    tomlplusplus::tomlplusplus
-    opus
-)
+if(NOT SCDA_SHADERC_DIR)
+    # ndk-build lands it under libs/c++_static/<abi>; a flat libs/<abi> also works
+    foreach(candidate "libs/c++_static/${ANDROID_ABI}" "libs/${ANDROID_ABI}")
+        if(EXISTS "${SHADERC_ROOT}/${candidate}/libshaderc.a")
+            set(SCDA_SHADERC_DIR "${SHADERC_ROOT}/${candidate}")
+            break()
+        endif()
+    endforeach()
+    if(NOT SCDA_SHADERC_DIR)
+        set(SCDA_SHADERC_DIR "${SHADERC_ROOT}/libs/${ANDROID_ABI}")
+    endif()
+endif()
+# the headers: the NDK package keeps them at <pkg>/include (and libshaderc/include is the same tree)
+if(EXISTS "${SHADERC_ROOT}/include/shaderc/shaderc.h")
+    target_include_directories(scda_port PRIVATE "${SHADERC_ROOT}/include")
+else()
+    target_include_directories(scda_port PRIVATE "${SCDA_SHADERC_DIR}/../../libshaderc/include")
+endif()
 
-# Compile definitions
-target_compile_definitions(scda_port PRIVATE
-    SCDA_PORT=1
-    __ANDROID__=1
-    SHADERC_STATIC=1
-    X86_GAME_CODE=1
-    _CRT_SECURE_NO_WARNINGS=1
-)
+# the static shaderc and its pieces, one archive: libshaderc.a
+find_library(SCDA_SHADERC_LIB shaderc PATHS "${SCDA_SHADERC_DIR}" NO_DEFAULT_PATH)
+if(NOT SCDA_SHADERC_LIB)
+    message(FATAL_ERROR "libshaderc.a not found in ${SCDA_SHADERC_DIR}; build it with ndk-build "
+        "NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_ABI=${ANDROID_ABI} APP_STL=c++_static "
+        "libshaderc_combined in ${CMAKE_ANDROID_NDK}/sources/third_party/shaderc")
+endif()
+target_link_libraries(scda_port PRIVATE ${SCDA_SHADERC_LIB})
 
-# Compile options for performance and size
+target_link_libraries(scda_port PRIVATE SDL3::SDL3 log android vulkan)
+
+target_compile_definitions(scda_port PRIVATE X86_GAME_CODE=1)
+
+# the xbe this build was recompiled from: the runtime checks the game it finds is the same release
+set(SCDA_XBE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../default.xbe")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SCDA_XBE}")
+file(SHA1 "${SCDA_XBE}" SCDA_XBE_SHA1)
+set(XBE_HASH "${CMAKE_CURRENT_BINARY_DIR}/xbe_sha1.cpp")
+file(CONFIGURE OUTPUT "${XBE_HASH}" CONTENT "extern const char kImageSha1[] = \"${SCDA_XBE_SHA1}\";\n")
+target_sources(scda_port PRIVATE "${XBE_HASH}")
+message(STATUS "recompiled image: default.xbe sha1 ${SCDA_XBE_SHA1}")
+# the image's symbols carry IMAGE_XBE; nothing redefines it
+
 target_compile_options(scda_port PRIVATE
     -O2
+    -g0
+    -fno-strict-aliasing
     -fvisibility=hidden
     -ffunction-sections
     -fdata-sections
-    -Wno-unused-parameter
-    -Wno-sign-compare
-    -Wno-unused-variable
-    -Wno-unused-function
-    -fno-strict-aliasing
+    -w
 )
+# the generated code compiles once, slowly: its own optimization, the runtime's are theirs
+set_source_files_properties(${GENERATED_SOURCES} PROPERTIES COMPILE_OPTIONS "-O2")
 
-# Link options
 target_link_options(scda_port PRIVATE
     -Wl,--gc-sections
     -Wl,--exclude-libs,ALL
 )
 
-# Android-specific: the shared library must be named libscda_port.so
-set_target_properties(scda_port PROPERTIES
-    OUTPUT_NAME "scda_port"
-    ANDROID_SO_NAME "scda_port"
-)
-
-# The generated code needs the XBE SHA-1 hash
-target_compile_definitions(scda_port PRIVATE
-    IMAGE_XBE=\"default.xbe\"
-)
+set_target_properties(scda_port PROPERTIES OUTPUT_NAME "scda_port")

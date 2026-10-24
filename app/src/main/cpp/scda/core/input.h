@@ -27,6 +27,8 @@ void SetBlocked(bool blocked);  // the options panel takes the input
 
 // window thread
 void OnRawInput(void* handle);
+// the SDL feed's raw mouse: counts since the last call and a wheel notch, any thread that pumps events
+void OnMouseRaw(int dx, int dy, int notch);
 void OnPress();  // the left button went down
 void OnClick();  // and came up: a menu click, when it also went down in the menu with the input taken
 void ReleaseCursor();

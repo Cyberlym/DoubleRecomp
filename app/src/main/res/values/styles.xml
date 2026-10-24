@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Mesmo tema do template oficial da SDL3: fullscreen sem barra de titulo. -->
-    <style name="AppTheme" parent="android:Theme.NoTitleBar.Fullscreen">
+    <!-- Tema escuro (Material do framework, sem AndroidX) para as telas do app.
+         A casca do jogo (ScdaActivity) continua com o mesmo tema da SDL3. -->
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">#FF0E1118</item>
+        <item name="android:colorPrimary">#FF2E7D32</item>
+        <item name="android:statusBarColor">#FF0E1118</item>
+        <item name="android:navigationBarColor">#FF0E1118</item>
     </style>
 </resources>

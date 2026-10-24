@@ -74,6 +74,11 @@ void SavePipelineCache();
 inline std::atomic<bool> g_splash{false};
 inline std::atomic<int> g_in_splash{0};
 inline std::atomic<bool> g_shown_splash{false};  // the frame on screen was presented 4:3
+
+// the backend's boot state, watched by the host's event loop: 0 not made, 1 up,
+// 2 made and refused (no swapchain, no usable GPU); and the frames presented
+inline std::atomic<int> g_backend_state{0};
+inline std::atomic<uint64_t> g_presents{0};
 // the game side drew a 4:3 picture this frame (versus' loading page): the next Swap shows it 4:3, whatever drew after
 inline std::atomic<bool> g_splash_next{false};
 

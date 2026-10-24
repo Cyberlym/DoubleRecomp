@@ -3,7 +3,8 @@ plugins {
 }
 
 android {
-    // Namespace dos componentes Java da SDL3 (org.libsdl.app).
+    // Namespace dos componentes Java da SDL3 (org.libsdl.app); as telas do app
+    // (launcher, instalador, opcoes, logs) ficam em com.tgp482.scda.
     namespace = "org.libsdl.app"
     compileSdk = 35
     ndkVersion = "26.1.10909125"
@@ -12,10 +13,10 @@ android {
         applicationId = "com.tgp482.scda_port"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-stage1"
+        versionCode = 2
+        versionName = "0.2.0"
 
-        // Etapa 1: apenas ARM64 (mesmo alvo do port futuro).
+        // Apenas ARM64.
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -24,6 +25,8 @@ android {
             cmake {
                 arguments += listOf(
                     "-DANDROID_STL=c++_static",
+                    // O runtime compila em Release (-O2, sem -g) tambem no assembleDebug.
+                    "-DCMAKE_BUILD_TYPE=Release",
                     // SDL3 compartilhada (libSDL3.so) empacotada junto do APK.
                     "-DSDL_SHARED=ON",
                     "-DSDL_STATIC=OFF",
@@ -46,6 +49,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // A .so sai de CMAKE_BUILD_TYPE=Release: nada de symtab de debug no pacote.
+            isJniDebuggable = false
+        }
         release {
             isMinifyEnabled = false
         }
@@ -73,5 +80,22 @@ android {
 
     lint {
         abortOnError = false
+    }
+
+    // Auditoria de conteudo: nada do jogo e nada de desenvolvimento entra no APK.
+    packaging {
+        resources {
+            excludes += listOf(
+                "**/*.xbe", "**/*.xex", "**/*.iso", "**/*.xiso",
+                "**/*.cpp", "**/*.h", "**/*.hpp", "**/*.o", "**/*.a", "**/*.log",
+                "**/*.keystore", "**/*.jks",
+                "generated/**", "vendor/**", "third_party/**", "tools/**",
+                "build/**", "dist/**", "META-INF/AL2.0", "META-INF/LGPL2.1",
+            )
+        }
+        jniLibs {
+            // AGP ja faz strip (llvm-strip) de cada .so no empacotamento.
+            useLegacyPackaging = false
+        }
     }
 }

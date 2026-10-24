@@ -22,6 +22,7 @@ constexpr uint32_t spv_OpTypeSampler = 26;
 constexpr uint32_t spv_OpTypeSampledImage = 27;
 constexpr uint32_t spv_OpTypePointer = 32;
 constexpr uint32_t spv_OpVariable = 59;
+constexpr uint32_t spv_OpEntryPoint = 15;
 constexpr uint32_t spv_DecorationBinding = 33;
 constexpr uint32_t spv_DecorationDescriptorSet = 34;
 constexpr uint32_t spv_StorageUniformConstant = 1;
@@ -102,8 +103,112 @@ bool ReflectSpirv(const uint8_t* code, size_t bytes, Reflect& out) {
     return !out.bindings.empty();
 }
 
+// the HLSL compiler and its options, made on the first shader
 shaderc_compiler_t g_compiler = nullptr;
 shaderc_compile_options_t g_options = nullptr;
+
+// The HLSL front end assigns every resource binding from its register number in set 0: b0, t0 and s0 all land on
+// binding 0. The renderer binds by the module's own names, so this pass renumbers the decorations deterministically
+// before the module is made: cbuffers low, textures from 4, samplers from 8, anything else from 16. Also names the
+// entry point "main", which the front end may leave empty.
+bool RewriteBindings(std::vector<uint8_t>& code) {
+    if (code.size() < 20 || (code.size() & 3)) return false;
+    uint32_t* w = reinterpret_cast<uint32_t*>(code.data());
+    if (w[0] != 0x07230203) return false;
+    uint32_t n = uint32_t(code.size() / 4);
+    struct Use {
+        std::string name;
+        uint32_t binding = 0;
+        uint32_t storage = 0;
+    };
+    std::unordered_map<uint32_t, Use> vars;  // result id -> what it holds
+    for (uint32_t i = 5; i < n;) {
+        uint32_t op = w[i] & 0xFFFF, len = w[i] >> 16;
+        if (!len || i + len > n) return false;
+        if (op == spv_OpName) {
+            const char* text = reinterpret_cast<const char*>(w + i + 2);
+            std::string name(text, strnlen(text, (len - 2) * 4));
+            if (!name.empty()) vars[w[i + 1]].name = name;
+        } else if (op == spv_OpVariable) {
+            vars[w[i + 2]].storage = w[i + 3];
+        }
+        i += len;
+    }
+    // the numbers the renderer writes descriptors by
+    auto slot = [](const std::string& name, uint32_t storage) -> int {
+        if (storage == spv_StorageUniform) {
+            if (name == "VC") return 0;
+            if (name == "DC" || name == "B") return 1;
+        } else if (storage == spv_StorageUniformConstant) {
+            if (name.rfind("tex", 0) == 0) {
+                uint32_t k = 0;
+                if (name.size() == 4 && name[3] >= '0' && name[3] <= '3') k = uint32_t(name[3] - '0');
+                return int(4 + k);
+            }
+            if (name.rfind("smp", 0) == 0) {
+                uint32_t k = 0;
+                if (name.size() == 4 && name[3] >= '0' && name[3] <= '3') k = uint32_t(name[3] - '0');
+                return int(8 + k);
+            }
+            if (name == "img") return 4;
+            if (name == "lut") return 5;
+            if (name == "ls") return 8;
+            if (name == "ps") return 9;
+        }
+        return -1;
+    };
+    std::vector<std::pair<std::string, uint32_t>> rest;  // resources outside the known names, numbered past them
+    std::unordered_map<uint32_t, int> want;
+    for (auto& [id, u] : vars) {
+        if (u.name.empty() || (u.storage != spv_StorageUniform && u.storage != spv_StorageUniformConstant)) continue;
+        int s = slot(u.name, u.storage);
+        if (s >= 0) {
+            want[id] = s;
+        } else {
+            rest.emplace_back(u.name, u.storage);
+        }
+    }
+    std::sort(rest.begin(), rest.end());
+    uint32_t next = 16;
+    std::unordered_map<std::string, int> seen;  // one number per distinct name, in name order, so both stages agree
+    for (auto& [name, storage] : rest) {
+        (void)storage;
+        auto it = seen.find(name);
+        if (it == seen.end()) it = seen.emplace(name, int(next++)).first;
+        for (auto& [id, u] : vars)
+            if (u.name == name && u.storage == storage) want[id] = it->second;
+    }
+    uint32_t writes = 0;
+    for (uint32_t i = 5; i < n;) {
+        uint32_t op = w[i] & 0xFFFF, len = w[i] >> 16;
+        if (op == spv_OpDecorate && w[i + 2] == spv_DecorationBinding) {
+            auto it = want.find(w[i + 1]);
+            if (it != want.end() && w[i + 3] != uint32_t(it->second)) {
+                w[i + 3] = uint32_t(it->second);
+                writes++;
+            }
+        }
+        i += len;
+    }
+    // the entry point's name, which some front ends leave empty
+    for (uint32_t i = 5; i < n;) {
+        uint32_t op = w[i] & 0xFFFF, len = w[i] >> 16;
+        if (op == spv_OpEntryPoint) {
+            char* text = reinterpret_cast<char*>(w + i + 3);
+            size_t room = (len - 4) * 4;
+            if (room >= 5 && (!text[0] || std::strncmp(text, "main", 5) != 0)) {
+                std::memset(text, 0, room);
+                std::memcpy(text, "main", 5);
+                writes++;
+            }
+            break;
+        }
+        i += len;
+    }
+    return true;  // a module without resources is fine too
+}
+
+
 
 bool CompileHlsl(const std::string& src, const char* entry, shaderc_shader_kind kind, std::vector<uint8_t>& spirv,
                  uint64_t hash) {
@@ -162,6 +267,11 @@ void BuildModule(Module& m, uint64_t hash) {
                                                                                : shaderc_glsl_fragment_shader,
                          spirv, hash))
             return;
+    }
+    // the front end's own binding numbers collide; the renderer binds by name
+    if (!RewriteBindings(spirv)) {
+        LOGE("vulkan: shader %016llx could not be rewritten", (unsigned long long)hash);
+        return;
     }
     Reflect reflect;
     if (!ReflectSpirv(spirv.data(), spirv.size(), reflect)) {
@@ -282,7 +392,9 @@ float4 main(O i) : SV_Target {
         for (int x = 0; x < n; x++) c += img.SampleLevel(ls, i.uv + px * ((float2(x, y) + 0.5) / n - 0.5), 0);
     c /= n * n;
     c.rgb *= opts.w;
-    if (opts.x > 0) c.rgb = float3(lut.Sample(ps, float2(c.r, 0.5)).r, lut.Sample(ps, float2(c.g, 0.5)).g, lut.Sample(ps, float2(c.b, 0.5)).b);
+    // the gamma lut holds a row per channel: R at v 1/6, G at 1/2, B at 5/6
+    if (opts.x > 0) c.rgb = float3(lut.Sample(ps, float2(c.r, 1.0 / 6.0)).r, lut.Sample(ps, float2(c.g, 0.5)).g,
+                                   lut.Sample(ps, float2(c.b, 5.0 / 6.0)).b);
     return float4(c.rgb, opts.y > 0 ? c.a : 1);
 }
 )";
