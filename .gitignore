@@ -1,10 +1,12 @@
 # Build artifacts
 .gradle/
-build/
+build*/
 app/build/
 app/.cxx/
 dist/
 *.apk
+*.o
+*.so
 
 # XBE binaries (user-provided game files, not committed)
 *.xbe

@@ -1,0 +1,20 @@
+# Host-side build of the x86->C++ recompiler only (Linux), from the SCDA-XBERecomp repo.
+cmake_minimum_required(VERSION 3.25)
+project(xbe_recomp_host LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+set(ZYDIS_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(ZYDIS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(ZYDIS_BUILD_DOXYGEN OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(zydis GIT_REPOSITORY https://github.com/zyantific/zydis.git GIT_TAG v4.1.1 GIT_SHALLOW TRUE)
+FetchContent_Declare(tomlplusplus GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git GIT_TAG v3.4.0 GIT_SHALLOW TRUE)
+FetchContent_MakeAvailable(zydis tomlplusplus)
+
+set(SCDA ${CMAKE_CURRENT_SOURCE_DIR}/vendor/SCDA-XBERecomp)
+file(GLOB RECOMP_SOURCES CONFIGURE_DEPENDS ${SCDA}/tools/recomp/*.cpp)
+add_executable(xbe_recomp ${RECOMP_SOURCES})
+target_include_directories(xbe_recomp PRIVATE ${SCDA}/src ${SCDA}/tools/recomp)
+target_compile_definitions(xbe_recomp PRIVATE _CRT_SECURE_NO_WARNINGS)
+target_link_libraries(xbe_recomp PRIVATE Zydis tomlplusplus::tomlplusplus)

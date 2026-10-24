@@ -1,0 +1,20 @@
+functions 14975
+instructions 1092256
+unimplemented aaa 19
+unimplemented aam 1
+unimplemented aas 12
+unimplemented arpl 1
+unimplemented bound 21
+unimplemented daa 40
+unimplemented das 21
+unimplemented enter 6
+unimplemented femms 1
+unimplemented insd 1
+unimplemented into 4
+unimplemented iretd 1
+unimplemented lds 3
+unimplemented les 10
+unimplemented lldt 1
+unimplemented outsb 5
+unimplemented outsd 2
+unimplemented salc 1
