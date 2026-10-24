@@ -42,12 +42,23 @@ list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*xdk/communicator\\.cpp$")
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*versus/.*\\.cpp$")
 list(APPEND RUNTIME_SOURCES ${SCDA_SOURCES})
 
-# the recompiled game code: the partitions, the mappings and the weak alias unit the ELF overrides need
+# the recompiled game code: the partitions and the weak alias unit the ELF overrides need.
+# x86_func_mapping.cpp gets a patched copy: its definitions are plain const (internal linkage on
+# ELF), while the runtime reads them through extern "C" declarations (cpu/x86_context.h); the copy
+# carries the extern "C" and compiles in place of the original.
 file(GLOB GENERATED_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_recomp.*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_func_mapping.cpp"
 )
 set(ALIASES_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_aliases.cpp")
+set(FUNC_MAPPING_IN "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_func_mapping.cpp")
+set(FUNC_MAPPING_OUT "${CMAKE_CURRENT_BINARY_DIR}/x86_func_mapping.cpp")
+add_custom_command(OUTPUT "${FUNC_MAPPING_OUT}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${FUNC_MAPPING_IN}" "${FUNC_MAPPING_OUT}"
+    COMMAND sed -i -E "s/^const (uint32_t|X86FuncMapping)/extern \"C\" const \\1/" "${FUNC_MAPPING_OUT}"
+    DEPENDS "${FUNC_MAPPING_IN}"
+    COMMENT "patching the recompiled tables for ELF linkage")
+set_source_files_properties(${ALIASES_SOURCE} PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1")
+set_source_files_properties(${FUNC_MAPPING_OUT} PROPERTIES GENERATED TRUE COMPILE_OPTIONS "-O2")
 # the aliases live in a unit of their own (see cpu/x86_ops.h): no caller shares it, so every call
 # resolves at link time, strong over the weak
 set_source_files_properties(${ALIASES_SOURCE} PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1")
