@@ -1,0 +1,21 @@
+# Build artifacts
+.gradle/
+build/
+app/build/
+app/.cxx/
+dist/
+*.apk
+
+# XBE binaries (user-provided game files, not committed)
+*.xbe
+
+# Keystore
+debug.keystore
+
+# Large third-party source (vendored SDL)
+third_party/SDL/
+
+# IDE
+.idea/
+.vscode/
+vendor/
