@@ -250,7 +250,11 @@ VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkR
     pc.renderPass = pass;
     pc.subpass = 0;
     VkPipeline pipe = VK_NULL_HANDLE;
-    if (!VKCHECK(vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe))) return VK_NULL_HANDLE;
+    {
+        std::lock_guard create_lock(g_pipe_create_lock);
+        if (!VKCHECK(vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe)))
+            return VK_NULL_HANDLE;
+    }
     return pipe;
 }
 
@@ -264,6 +268,12 @@ struct KeyedPipeline {
 
 std::mutex g_map_lock;
 std::unordered_map<uint64_t, KeyedPipeline*> g_map;
+
+// Adreno's driver returns VK_ERROR_UNKNOWN when two threads create pipelines through the same
+// VkPipelineCache at once (the async build thread's game pipelines and the render thread's blit
+// pipelines share g_ctx.pipe_cache): every creation in this file goes through this one lock,
+// so the cache is only ever used single-threaded
+std::mutex g_pipe_create_lock;
 
 constexpr uint64_t kPipelineSalt = 0x50534F4B45590000ull;  // 'PSOKEY'
 
@@ -383,7 +393,17 @@ VkPipeline BuildBlitPipeline(VkFormat color, bool over) {
     pc.layout = g_blit.layout;
     pc.renderPass = pass;
     VkPipeline pipe = VK_NULL_HANDLE;
-    if (!VKCHECK(vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe))) return VK_NULL_HANDLE;
+    VkResult created = VK_ERROR_INITIALIZATION_FAILED;
+    {
+        std::lock_guard create_lock(g_pipe_create_lock);
+        created = vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe);
+    }
+    if (created != VK_SUCCESS) {
+        // the variant in the log: if the lock was not enough, the format and blend say which case died
+        LOGE("vulkan: the blit pipeline for color format %u over %u failed: %d", uint32_t(color), over ? 1 : 0,
+             int(created));
+        return VK_NULL_HANDLE;
+    }
     {
         std::lock_guard l(lock);
         pipes.emplace(key, pipe);

@@ -1,4 +1,4 @@
-# SCDA Port — Port nativo Android (concluído)
+# SCDA Port — Port nativo Android
 
 Port nativo de Splinter Cell: Double Agent (Xbox) para Android ARM64, via recompilação
 estática do XBE ([SCDA-XBERecomp](https://github.com/TGP482/SCDA-XBERecomp)).
@@ -42,9 +42,7 @@ gradle assembleDebug        # APK: app/build/outputs/apk/debug/scda_port-debug.a
   o .so do jogo sai com `-O2`, sem symtab de debug (AGP aplica `llvm-strip`).
 - Dependência: o **shaderc v2025.5 das fontes locais** (`build-android/_deps/*-src`,
   declaradas por `SOURCE_DIR` no FetchContent — nada é baixado). Se a pasta sumir, o
-  configure explica e aborta. (O pré-compilado do NDK, v2022.3, fica de fora de propósito:
-  o glslang antigo emite um SPIR-V que a reflexão do runtime rejeita.)
-
+  configure explica e aborta. (O pré-compilado do NDK, v2022.3, fica de fora de propósito.)
 - Incremental: não fazer `clean` — o cache CMake/Ninja vive em `app/.cxx/Release`.
   O código gerado (`generated/game/x86_recomp.*.cpp`, 128 unidades) compila devagar;
   só recompila o que mudou.
@@ -56,12 +54,12 @@ saves, cache de shaders, gamepad/touch via SDL3.
 Fora: versus/co-op (`sc4_adv.xbe` é outra imagem, precisaria de outra lib),
 online/XNet (HLE responde "sem rede"), voz (Opus), communicator.
 
-## Validação do APK (auditoria real, build 0.2.1)
+## Validação do APK (auditoria real, build 0.2.3)
 
 ```
 $ unzip -l dist/scda_port.apk
   lib/arm64-v8a/libSDL3.so        2.367.328 B
-  lib/arm64-v8a/libscda_port.so   37.412.432 B   ← jogo recompilado + shaderc v2025.5 estático dentro
+  lib/arm64-v8a/libscda_port.so   37.414 MB    ← jogo recompilado + shaderc v2025.5 estático dentro
   classes*.dex, res/, resources.arsc — nada além disso (sem iso/xbe/fontes/objetos)
 
 $ llvm-readelf -d libscda_port.so → NEEDED: libSDL3.so, liblog, libandroid,
@@ -71,22 +69,29 @@ $ llvm-nm …  | grep -c sub_*       → 4140 funções recompiladas presentes
 $ llvm-nm -D … | grep -c shaderc_  → 0 (estático, escondido por --exclude-libs)
 $ apksigner verify                 → v2 ok, cert do debug.keystore do projeto
 $ aapt2 dump badging               → launchable LauncherActivity, native-code: arm64-v8a
-sha256 do APK: 0ecec12d8e93c3a266f7b09376fad0524db8d2c949763cda0d512d0af3accbe9
+sha256 do APK (0.2.3): ed01ca8cebe79cf782e3cd285b5bb895f4e44f9c16255c6111028ea3cfc5ca13
 ```
 
-### shaderc: por que v2025.5 e não o pré-compilado do NDK
+### Os bugs do pipeline de shaders (o crash `vulkan_failed` no aparelho)
 
-O pré-compilado do NDK (v2022.3) compila os shaders, mas o glslang antigo emite um
-SPIR-V sem os nomes/bindings que a reflexão do runtime lê — o blit shader falhava
-com `reflection failed` no boot do jogo no aparelho. O build usa as fontes v2025.5
-que já estão no disco (`build-android/_deps`, declaradas por `SOURCE_DIR` no
-FetchContent, zero rede), e a versão do cache de shaders subiu para 3: o cache
-antigo do aparelho se descarta sozinho no primeiro boot, sem limpar dados do jogador.
+O jogo bootava até `game_entry`, criava o dispositivo Vulkan (Adreno) e morria no
+`shader 1f27b3ab8b39ed71 reflection failed` — o vertex shader do blit. Reproduzindo
+a compilação no host com o próprio glslc v2025.5, a causa real:
+
+1. **Argumentos trocados em `shaderc_compile_into_spv`**: a assinatura é
+   `(…, kind, input_file_name, entry_point_name, options)` e a chamada passava
+   `(…, kind, "main", "scda", options)` — pedia o entry point **"scda"**, que não
+   existe. O glslang não erroa: emite um *warning* ("Entry point not found") e um
+   **stub de 728 bytes** sem nenhuma variável — que a reflexão (corretamente)
+   rejeitava. Como o stub era gravado no cache de shaders **antes** da reflexão,
+   todo boot relesse o mesmo lixo. Corrigido na 0.2.3 + cache re-versionado (v5).
+2. **Storage class errada**: o parser usava `UniformConstant = 1`, mas na spec é
+   **0** (1 é `Input`) — todas as texturas e samplers eram puladas. Corrigido junto.
+3. (Determinação auxiliar) debug info ligado no shaderc, e o nome do cbuffer é
+   resolvido pelo tipo do bloco quando a variável é anônima — os dois necessários
+   pra reflexão ligar os recursos por nome (`img`, `lut`, `ls`, `ps`, `B`).
 
 ## Teste em dispositivo
-
-`adb devices` na entrega: **nenhum dispositivo conectado** — o boot no hardware
-fica pendente. Quando houver:
 
 ```bash
 adb install -r dist/scda_port.apk
@@ -94,6 +99,7 @@ adb logcat -s scda SDL          # estágios do boot: runtime_init → iso_open �
                                 # xbe_loaded → game_entry → vulkan_ready → first_frame
 ```
 
-O launcher diagnostica sozinho: se o jogo não chegar ao primeiro frame, o diálogo
-da próxima abertura mostra o último estágio do boot (`logs/boot_stage.txt`) e o
-botão compartilha o log (`logs/scda_NNN.log`).
+A primeira linha do log identifica o build (`shell: SCDA Port 0.2.3 host starting`).
+O launcher diagnostica sozinho: se o jogo não chegar ao primeiro frame, o diálogo da
+próxima abertura mostra o último estágio do boot (`logs/boot_stage.txt`) e o botão
+compartilha o log (`logs/scda_NNN.log`).

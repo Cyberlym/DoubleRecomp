@@ -261,7 +261,10 @@ bool CompileHlsl(const std::string& src, const char* entry, shaderc_shader_kind 
         // without it every module reflects to zero bindings and the blit fails to build
         shaderc_compile_options_set_generate_debug_info(g_options);
     }
-    shaderc_compilation_result_t r = shaderc_compile_into_spv(g_compiler, src.data(), src.size(), kind, entry, "scda",
+    // the argument order is (…, kind, input_file_name, entry_point_name, options): "scda" is the file name
+    // the log names, and the entry point is the caller's — they were swapped once and glslang linked a
+    // stub entry ("warning: entry point not found", status success), which every later stage rejected
+    shaderc_compilation_result_t r = shaderc_compile_into_spv(g_compiler, src.data(), src.size(), kind, "scda", entry,
                                                               g_options);
     shaderc_compilation_status st = shaderc_result_get_compilation_status(r);
     if (st != shaderc_compilation_status_success) {

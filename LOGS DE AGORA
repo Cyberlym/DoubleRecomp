@@ -1,176 +1,194 @@
-Estágio do boot: vulkan_failed
+Estágio do boot: first_frame_presented
 
-[    0.208] [info] [t66f0] shell: SCDA Port 0.2.2 host starting, log /storage/emulated/0/Android/data/com.tgp482.scda_port/files/logs/scda_001.log
-[    0.222] [info] [t66f0] input: SDL 3.4.18
-[    0.222] [info] [t66f0] Android device, SDL 3.4.18
-[    0.222] [info] [t66f0] Display: 1600x720 120 Hz
-[    0.228] [info] [t66f0] Settings:
-[    0.229] [info] [t66f0]   ambient_occlusion = 0
-[    0.229] [info] [t66f0]   anisotropic_filtering = 0
-[    0.229] [info] [t66f0]   async_shaders = true
-[    0.229] [info] [t66f0]   audio_output = 0
-[    0.229] [info] [t66f0]   brightness = 50
-[    0.229] [info] [t66f0]   contrast = 50
-[    0.229] [info] [t66f0]   coop_input_delay_floor_ms = 20
-[    0.229] [info] [t66f0]   coop_tick_rate = 60
-[    0.229] [info] [t66f0]   display_mode = 'borderless'
-[    0.229] [info] [t66f0]   fmv_scale = 0
-[    0.229] [info] [t66f0]   fov = 75
-[    0.229] [info] [t66f0]   fps_cap = 60
-[    0.229] [info] [t66f0]   fps_counter = false
-[    0.229] [info] [t66f0]   free_look_sensitivity = 1.0
-[    0.229] [info] [t66f0]   hdr_output = true
-[    0.229] [info] [t66f0]   hdr_rendering = false
-[    0.229] [info] [t66f0]   height = 0
-[    0.229] [info] [t66f0]   invert_mouse = false
-[    0.229] [info] [t66f0]   join_ip = ''
-[    0.229] [info] [t66f0]   language = 'auto'
-[    0.229] [info] [t66f0]   microphone = ''
-[    0.229] [info] [t66f0]   monitor = ''
-[    0.229] [info] [t66f0]   mouse_sensitivity = 1.0
-[    0.229] [info] [t66f0]   msaa = 0
-[    0.229] [info] [t66f0]   pause_on_focus_loss = true
-[    0.229] [info] [t66f0]   player1 = 'keyboard+controller1'
-[    0.229] [info] [t66f0]   player2 = 'controller2'
-[    0.229] [info] [t66f0]   push_to_talk = false
-[    0.229] [info] [t66f0]   render_percent = 100
-[    0.229] [info] [t66f0]   shader_model = 1
-[    0.229] [info] [t66f0]   shadow_distance = 1
-[    0.229] [info] [t66f0]   shadow_filter = 1
-[    0.229] [info] [t66f0]   shadow_resolution = 512
-[    0.229] [info] [t66f0]   skip_intros = false
-[    0.229] [info] [t66f0]   smaa = false
-[    0.229] [info] [t66f0]   sniper_sensitivity = 1.0
-[    0.229] [info] [t66f0]   tone_mapping = false
-[    0.229] [info] [t66f0]   vsync = true
-[    0.229] [info] [t66f0]   weapon_sensitivity = 1.0
-[    0.229] [info] [t66f0]   width = 0
-[    0.229] [info] [t66f0]   [controller]
-[    0.229] [info] [t66f0]   [keys]
-[    0.229] [info] [t66f0] boot stage: runtime_init
-[    0.301] [info] [t66f0] Game: default.xbe in /storage/emulated/0/Android/data/com.tgp482.scda_port/files/game/SplinterCell-DA/SplinterCell-DA.iso, sha1 91290baf93c2f6ae735a3106c48734665c826d84
-[    0.301] [info] [t66f0] boot stage: iso_open
-[    0.301] [info] [t66f0] boot stage: xbe_loaded
-[    0.301] [info] [t66f0] game code: default.xbe compiled in (AOT), sha1 91290baf93c2f6ae735a3106c48734665c826d84
-[    0.301] [info] [t66f0] memory: guest space at 0x100000000
-[    0.301] [info] [t66f0] boot: title 5553005E, entry 00054775, 34 sections
-[    0.301] [info] [t66f0] boot: library XAPILIB  1.0.5849
-[    0.301] [info] [t66f0] boot: library XONLINES 1.0.5849
-[    0.301] [info] [t66f0] boot: library XVOICE   1.0.5849
-[    0.301] [info] [t66f0] boot: library D3D8     1.0.5849
-[    0.301] [info] [t66f0] boot: library D3DX8    1.0.5849
-[    0.301] [info] [t66f0] boot: library XGRAPHC  1.0.5849
-[    0.301] [info] [t66f0] boot: library XBOXKRNL 1.0.5849
-[    0.301] [info] [t66f0] boot: library LIBCMT   1.0.5849
-[    0.301] [info] [t66f0] boot: library LIBCPMT  1.0.5849
-[    0.301] [info] [t66f0] boot: library VOICMAIL 1.0.5849
-[    0.301] [info] [t66f0] boot: library DSOUND   1.0.5849
-[    0.323] [info] [t66f0] dispatch: 33172 functions over 00011000..004F5150
-[    0.323] [info] [t66f0] boot: kernel imports resolved, 0 missing
-[    0.325] [info] [t66f0] files: D: is /storage/emulated/0/Android/data/com.tgp482.scda_port/files/game/SplinterCell-DA/SplinterCell-DA.iso, hard disk under /storage/emulated/0/Android/data/com.tgp482.scda_port/files/data
-[    0.326] [info] [t66f0] boot stage: game_entry
-[    0.326] [info] [tc6f0] thread 10 starts at 00054775 (00054775, 00000000)
-[    0.328] [info] [t66f0] thread 14 starts at 000524DA (00054701, 00000000)
-[    0.328] [info] [tc6f0] thread 10 returned 00000001
-[    0.335] [info] [t66f0] ExQueryNonVolatileSetting 11 -> 0
-[    0.335] [info] [t66f0] files: link \??\D: -> \Device\CdRom0
-[    0.337] [info] [t66f0] files: link \??\T: -> \Device\Harddisk0\partition1\TDATA\5553005e
-[    0.337] [info] [t66f0] open \Device\Harddisk0\partition1\UDATA\5553005e\TitleMeta.xbx
-[    0.338] [info] [t66f0] open \Device\Harddisk0\partition1\UDATA\5553005e\TitleImage.xbx
-[    0.338] [info] [t66f0] XeLoadSection $$XTIMAGE at 006C89E0
-[    0.338] [info] [t66f0] open \Device\Harddisk0\partition1\UDATA\5553005e\SaveImage.xbx
-[    0.338] [info] [t66f0] XeLoadSection $$XSIMAGE at 006CB1E0
-[    0.338] [info] [t66f0] files: link \??\U: -> \Device\Harddisk0\partition1\UDATA\5553005e
-[    0.338] [info] [t66f0] files: link \??\Z: -> \Device\Harddisk0\Partition5
-[    0.338] [info] [t66f0] ExQueryNonVolatileSetting A -> 0
-[    0.340] [info] [t66f0] missing t:\$u\contentmeta.xbx
-[    0.376] [warn] [t66f0] xnet: no networking in this Android build, the game stays offline
-[    0.383] [info] [t66f0] missing z:\Default\DynamicXbox.umd
-[    0.384] [info] [t66f0] missing z:\Default\DynamicXbox.umd
-[    0.385] [info] [t66f0] missing D:\Default\Default\DynamicXbox.umd
-[    0.385] [info] [t66f0] open d:\Default\DynamicXbox.umd
-[    0.385] [info] [t66f0] open z:\Default\DynamicXbox.umd
-[    0.404] [info] [t66f0] missing D:\Default\Default\DynamicXbox.umd
-[    0.404] [info] [t66f0] open z:\Default\DynamicXbox.umd
-[    0.415] [info] [t66f0] ExQueryNonVolatileSetting 7 -> 1
-[    0.415] [info] [t66f0] ExQueryNonVolatileSetting 103 -> 400100
-[    0.415] [info] [t66f0] open d:\Default\DataXb\Sounds\Stream.SS2
-[    0.416] [info] [t66f0] open d:\Default\DataXb\Sounds\Fol_Common.SS2
-[    0.416] [info] [t66f0] open d:\Default\DataXb\Sounds\int\Stream.LS2
-[    0.416] [info] [t66f0] open d:\Default\DataXb\Sounds\int\SCX_Barks_Usa.LS2
-[    0.416] [info] [t66f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Spanish.LS2
-[    0.416] [info] [t66f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Korean.LS2
-[    0.416] [info] [t66f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Japan.LS2
-[    0.419] [info] [t66f0] missing D:\Default\DataXb\Maps\
-[    0.438] [info] [t66f0] missing T:\$C\
-[    0.440] [info] [t66f0] open D:\Default\DataXb\LMaps\common.lin
-[    0.442] [info] [t66f0] open D:\Default\
-[    0.442] [info] [t66f0] open D:\Default\splintercell4xboxretail.umd
-[    0.443] [info] [t66f0] missing D:\Default\SplinterCell4Xbox.ini
-[    0.443] [info] [t66f0] missing T:\SplinterCell4Xbox.ini
-[    0.443] [info] [t66f0] missing D:\Default\SplinterCell4Xbox.ini
-[    0.443] [info] [t66f0] missing D:\Default\SplinterCell4User.ini
-[    0.444] [info] [t66f0] missing T:\SplinterCell4User.ini
-[    0.444] [info] [t66f0] missing D:\Default\SplinterCell4User.ini
-[    0.477] [info] [t66f0] open D:\Default\DataXb\LMaps\Menu\Menu.lin
-[    0.488] [info] [t66f0] missing D:\Default\721d7c6e
-[    0.488] [info] [t66f0] missing T:\721d7c6e
-[    0.488] [info] [t66f0] missing D:\Default\721d7c6e
-[    0.488] [info] [t66f0] ExQueryNonVolatileSetting 8 -> 90000
-[    0.488] [info] [t66f0] ExQueryNonVolatileSetting 103 -> 400100
-[    0.488] [info] [t66f0] d3d: CreateDevice 640x480 format 12 buffers 1 depth 1 format 2E interval 80000002 flags 150
-[    0.595] [info] [t66f0] vulkan: device Adreno (TM) 619, Vulkan 1.1, driver 0.530.0
-[    0.634] [info] [t66f0] vulkan: device ready, depth 129, BC 000, aniso 16
-[    0.643] [info] [t66f0] vulkan: swapchain 1600x720, 4 images, format 37, present 2
-[    0.644] [info] [t66f0] shader cache: 0 shaders, 0.0 MB
-[    0.644] [info] [t66f0] pipeline keys: 0 from default.xbe_pipeline_keys.bin
-[    0.699] [error] [t66f0] vulkan: shader 1f27b3ab8b39ed71 reflection failed
-[    0.700] [error] [t66f0] vulkan: the blit shaders failed to build
-[    0.700] [error] [t66f0] d3d: renderer init failed
-[    0.700] [error] [t66f0] shell: the GPU cannot run the game, see the log for the reason
-[    0.700] [error] [t66f0] shell: the game did not reach its first frame, giving up (vulkan_failed)
-[    0.701] [info] [t66f0] boot stage: vulkan_failed
-[    0.701] [info] [t66f0] pipeline cache: 0.0 MB saved
-[    0.702] [info] [t66f0] boot stage: exit_clean
-[    0.702] [info] [t66f0] shell: SCDA Port host exiting
-[    0.702] [info] [t66f0] shadows: map 00935000, edge blur 00935000-0098A400
-[    0.702] [info] [t66f0] d3d: vertex shader B0000C61, 5 decl tokens, 17 instructions, type 2078
-[    0.702] [info] [t66f0] d3d: vertex shader B0000C71, 5 decl tokens, 22 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100C81, 5 decl tokens, 32 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100C91, 5 decl tokens, 21 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100CA1, 5 decl tokens, 32 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100CB1, 5 decl tokens, 35 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100CC1, 5 decl tokens, 22 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100CD1, 5 decl tokens, 41 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100CE1, 5 decl tokens, 19 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100CF1, 5 decl tokens, 17 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D01, 5 decl tokens, 16 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D11, 5 decl tokens, 12 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D21, 5 decl tokens, 14 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D31, 5 decl tokens, 13 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D41, 5 decl tokens, 12 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D51, 5 decl tokens, 11 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D61, 5 decl tokens, 8 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D71, 5 decl tokens, 5 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D81, 5 decl tokens, 14 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100D91, 5 decl tokens, 9 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100DA1, 5 decl tokens, 19 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100DB1, 5 decl tokens, 27 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100DC1, 5 decl tokens, 21 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100DD1, 5 decl tokens, 17 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100DE1, 5 decl tokens, 12 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100DF1, 7 decl tokens, 22 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E01, 7 decl tokens, 24 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E11, 7 decl tokens, 28 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E21, 7 decl tokens, 39 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E31, 7 decl tokens, 26 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E41, 7 decl tokens, 37 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E51, 7 decl tokens, 40 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E61, 7 decl tokens, 26 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E71, 7 decl tokens, 41 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E81, 7 decl tokens, 21 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100E91, 7 decl tokens, 23 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100EA1, 7 decl tokens, 25 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100EB1, 7 decl tokens, 17 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100EC1, 7 decl tokens, 16 instructions, type 2078
-[    0.703] [info] [t66f0] d3d: vertex shader B0100ED1, 7 decl tokens, 18 instructions, type
+[    0.074] [info] [te6f0] shell: SCDA Port 0.2.3 host starting, log /storage/emulated/0/Android/data/com.tgp482.scda_port/files/logs/scda_005.log
+[    0.143] [info] [te6f0] input: SDL 3.4.18
+[    0.143] [info] [te6f0] Android device, SDL 3.4.18
+[    0.143] [info] [te6f0] Display: 1600x720 120 Hz
+[    0.144] [info] [te6f0] Settings:
+[    0.144] [info] [te6f0]   ambient_occlusion = 0
+[    0.144] [info] [te6f0]   anisotropic_filtering = 0
+[    0.144] [info] [te6f0]   async_shaders = true
+[    0.144] [info] [te6f0]   audio_output = 0
+[    0.144] [info] [te6f0]   brightness = 50
+[    0.144] [info] [te6f0]   contrast = 50
+[    0.144] [info] [te6f0]   coop_input_delay_floor_ms = 20
+[    0.144] [info] [te6f0]   coop_tick_rate = 60
+[    0.144] [info] [te6f0]   display_mode = 'borderless'
+[    0.144] [info] [te6f0]   fmv_scale = 0
+[    0.144] [info] [te6f0]   fov = 75
+[    0.144] [info] [te6f0]   fps_cap = 60
+[    0.144] [info] [te6f0]   fps_counter = false
+[    0.144] [info] [te6f0]   free_look_sensitivity = 1.0
+[    0.144] [info] [te6f0]   hdr_output = true
+[    0.144] [info] [te6f0]   hdr_rendering = false
+[    0.144] [info] [te6f0]   height = 0
+[    0.144] [info] [te6f0]   invert_mouse = false
+[    0.144] [info] [te6f0]   join_ip = ''
+[    0.144] [info] [te6f0]   language = 'auto'
+[    0.144] [info] [te6f0]   microphone = ''
+[    0.145] [info] [te6f0]   monitor = ''
+[    0.145] [info] [te6f0]   mouse_sensitivity = 1.0
+[    0.145] [info] [te6f0]   msaa = 0
+[    0.145] [info] [te6f0]   pause_on_focus_loss = true
+[    0.145] [info] [te6f0]   player1 = 'keyboard+controller1'
+[    0.145] [info] [te6f0]   player2 = 'controller2'
+[    0.145] [info] [te6f0]   push_to_talk = false
+[    0.145] [info] [te6f0]   render_percent = 100
+[    0.145] [info] [te6f0]   shader_model = 1
+[    0.145] [info] [te6f0]   shadow_distance = 1
+[    0.145] [info] [te6f0]   shadow_filter = 1
+[    0.145] [info] [te6f0]   shadow_resolution = 512
+[    0.145] [info] [te6f0]   skip_intros = false
+[    0.145] [info] [te6f0]   smaa = false
+[    0.145] [info] [te6f0]   sniper_sensitivity = 1.0
+[    0.145] [info] [te6f0]   tone_mapping = false
+[    0.145] [info] [te6f0]   vsync = true
+[    0.145] [info] [te6f0]   weapon_sensitivity = 1.0
+[    0.145] [info] [te6f0]   width = 0
+[    0.145] [info] [te6f0]   [controller]
+[    0.145] [info] [te6f0]   [keys]
+[    0.145] [info] [te6f0] boot stage: runtime_init
+[    0.274] [info] [te6f0] Game: default.xbe in /storage/emulated/0/Android/data/com.tgp482.scda_port/files/game/SplinterCell-DA/SplinterCell-DA.iso, sha1 91290baf93c2f6ae735a3106c48734665c826d84
+[    0.274] [info] [te6f0] boot stage: iso_open
+[    0.274] [info] [te6f0] boot stage: xbe_loaded
+[    0.274] [info] [te6f0] game code: default.xbe compiled in (AOT), sha1 91290baf93c2f6ae735a3106c48734665c826d84
+[    0.274] [info] [te6f0] memory: guest space at 0x100000000
+[    0.274] [info] [te6f0] boot: title 5553005E, entry 00054775, 34 sections
+[    0.274] [info] [te6f0] boot: library XAPILIB  1.0.5849
+[    0.274] [info] [te6f0] boot: library XONLINES 1.0.5849
+[    0.274] [info] [te6f0] boot: library XVOICE   1.0.5849
+[    0.274] [info] [te6f0] boot: library D3D8     1.0.5849
+[    0.274] [info] [te6f0] boot: library D3DX8    1.0.5849
+[    0.274] [info] [te6f0] boot: library XGRAPHC  1.0.5849
+[    0.274] [info] [te6f0] boot: library XBOXKRNL 1.0.5849
+[    0.274] [info] [te6f0] boot: library LIBCMT   1.0.5849
+[    0.274] [info] [te6f0] boot: library LIBCPMT  1.0.5849
+[    0.274] [info] [te6f0] boot: library VOICMAIL 1.0.5849
+[    0.274] [info] [te6f0] boot: library DSOUND   1.0.5849
+[    0.297] [info] [te6f0] dispatch: 33172 functions over 00011000..004F5150
+[    0.297] [info] [te6f0] boot: kernel imports resolved, 0 missing
+[    0.297] [info] [te6f0] files: D: is /storage/emulated/0/Android/data/com.tgp482.scda_port/files/game/SplinterCell-DA/SplinterCell-DA.iso, hard disk under /storage/emulated/0/Android/data/com.tgp482.scda_port/files/data
+[    0.298] [info] [ta6f0] thread 10 starts at 00054775 (00054775, 00000000)
+[    0.299] [info] [te6f0] boot stage: game_entry
+[    0.299] [info] [ta6f0] thread 10 returned 00000001
+[    0.300] [info] [t46f0] thread 14 starts at 000524DA (00054701, 00000000)
+[    0.300] [info] [t46f0] ExQueryNonVolatileSetting 11 -> 0
+[    0.301] [info] [t46f0] files: link \??\D: -> \Device\CdRom0
+[    0.301] [info] [t46f0] files: link \??\T: -> \Device\Harddisk0\partition1\TDATA\5553005e
+[    0.302] [info] [t46f0] open \Device\Harddisk0\partition1\UDATA\5553005e\TitleMeta.xbx
+[    0.302] [info] [t46f0] open \Device\Harddisk0\partition1\UDATA\5553005e\TitleImage.xbx
+[    0.303] [info] [t46f0] open \Device\Harddisk0\partition1\UDATA\5553005e\SaveImage.xbx
+[    0.303] [info] [t46f0] files: link \??\U: -> \Device\Harddisk0\partition1\UDATA\5553005e
+[    0.303] [info] [t46f0] files: link \??\Z: -> \Device\Harddisk0\Partition5
+[    0.303] [info] [t46f0] ExQueryNonVolatileSetting A -> 0
+[    0.303] [info] [t46f0] missing t:\$u\contentmeta.xbx
+[    0.309] [warn] [t46f0] xnet: no networking in this Android build, the game stays offline
+[    0.310] [info] [t46f0] open z:\Default\DynamicXbox.umd
+[    0.310] [info] [t46f0] open z:\Default\DynamicXbox.umd
+[    0.313] [info] [t46f0] ExQueryNonVolatileSetting 7 -> 1
+[    0.313] [info] [t46f0] ExQueryNonVolatileSetting 103 -> 400100
+[    0.313] [info] [t46f0] open d:\Default\DataXb\Sounds\Stream.SS2
+[    0.313] [info] [t46f0] open d:\Default\DataXb\Sounds\Fol_Common.SS2
+[    0.313] [info] [t46f0] open d:\Default\DataXb\Sounds\int\Stream.LS2
+[    0.314] [info] [t46f0] open d:\Default\DataXb\Sounds\int\SCX_Barks_Usa.LS2
+[    0.314] [info] [t46f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Spanish.LS2
+[    0.314] [info] [t46f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Korean.LS2
+[    0.314] [info] [t46f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Japan.LS2
+[    0.315] [info] [t46f0] missing D:\Default\DataXb\Maps\
+[    0.338] [info] [t46f0] missing T:\$C\
+[    0.339] [info] [t46f0] open D:\Default\DataXb\LMaps\common.lin
+[    0.340] [info] [t46f0] open D:\Default\
+[    0.340] [info] [t46f0] open D:\Default\splintercell4xboxretail.umd
+[    0.341] [info] [t46f0] missing D:\Default\SplinterCell4Xbox.ini
+[    0.341] [info] [t46f0] missing T:\SplinterCell4Xbox.ini
+[    0.341] [info] [t46f0] missing D:\Default\SplinterCell4Xbox.ini
+[    0.341] [info] [t46f0] missing D:\Default\SplinterCell4User.ini
+[    0.341] [info] [t46f0] missing T:\SplinterCell4User.ini
+[    0.341] [info] [t46f0] missing D:\Default\SplinterCell4User.ini
+[    0.373] [info] [t46f0] open D:\Default\DataXb\LMaps\Menu\Menu.lin
+[    0.377] [info] [t46f0] missing D:\Default\721d7c6e
+[    0.378] [info] [t46f0] missing T:\721d7c6e
+[    0.378] [info] [t46f0] missing D:\Default\721d7c6e
+[    0.378] [info] [t46f0] ExQueryNonVolatileSetting 8 -> 80000
+[    0.378] [info] [t46f0] ExQueryNonVolatileSetting 103 -> 400100
+[    0.378] [info] [t46f0] d3d: CreateDevice 640x480 format 12 buffers 1 depth 1 format 2E interval 80000002 flags 140
+[    0.399] [info] [t46f0] vulkan: device Adreno (TM) 619, Vulkan 1.1, driver 0.530.0
+[    0.421] [info] [t46f0] vulkan: device ready, depth 129, BC 000, aniso 16
+[    0.429] [info] [t46f0] vulkan: swapchain 720x1600, 4 images, format 37, present 2
+[    0.429] [info] [t46f0] shader cache: 2 shaders, 0.0 MB
+[    0.429] [info] [t46f0] pipeline keys: 0 from default.xbe_pipeline_keys.bin
+[    0.446] [info] [t46f0] vulkan: 640x480 guest, 720x1600 window, render scale 3.333
+[    0.446] [info] [te6f0] boot stage: vulkan_ready
+[    0.448] [info] [t46f0] shadows: map 00935000, edge blur 00935000-0098A400
+[    0.448] [info] [t46f0] d3d: vertex shader B0000C61, 5 decl tokens, 17 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0000C71, 5 decl tokens, 22 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100C81, 5 decl tokens, 32 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100C91, 5 decl tokens, 21 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100CA1, 5 decl tokens, 32 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100CB1, 5 decl tokens, 35 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100CC1, 5 decl tokens, 22 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100CD1, 5 decl tokens, 41 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100CE1, 5 decl tokens, 19 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100CF1, 5 decl tokens, 17 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D01, 5 decl tokens, 16 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D11, 5 decl tokens, 12 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D21, 5 decl tokens, 14 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D31, 5 decl tokens, 13 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D41, 5 decl tokens, 12 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D51, 5 decl tokens, 11 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D61, 5 decl tokens, 8 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D71, 5 decl tokens, 5 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D81, 5 decl tokens, 14 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100D91, 5 decl tokens, 9 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100DA1, 5 decl tokens, 19 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100DB1, 5 decl tokens, 27 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100DC1, 5 decl tokens, 21 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100DD1, 5 decl tokens, 17 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100DE1, 5 decl tokens, 12 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100DF1, 7 decl tokens, 22 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E01, 7 decl tokens, 24 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E11, 7 decl tokens, 28 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E21, 7 decl tokens, 39 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E31, 7 decl tokens, 26 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E41, 7 decl tokens, 37 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E51, 7 decl tokens, 40 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E61, 7 decl tokens, 26 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E71, 7 decl tokens, 41 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E81, 7 decl tokens, 21 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100E91, 7 decl tokens, 23 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100EA1, 7 decl tokens, 25 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100EB1, 7 decl tokens, 17 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100EC1, 7 decl tokens, 16 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100ED1, 7 decl tokens, 18 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100EE1, 7 decl tokens, 12 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100EF1, 7 decl tokens, 14 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100F01, 7 decl tokens, 14 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100F11, 7 decl tokens, 13 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100F21, 7 decl tokens, 11 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100F31, 7 decl tokens, 8 instructions, type 2078
+[    0.448] [info] [t46f0] d3d: vertex shader B0100F41, 7 decl tokens, 78 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100F51, 7 decl tokens, 74 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100F61, 7 decl tokens, 9 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100F71, 7 decl tokens, 5 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100F81, 7 decl tokens, 19 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100F91, 7 decl tokens, 27 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100FA1, 7 decl tokens, 10 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100FB1, 7 decl tokens, 26 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100FC1, 7 decl tokens, 12 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100FD1, 7 decl tokens, 20 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100FE1, 6 decl tokens, 8 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0100FF1, 9 decl tokens, 13 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0101001, 9 decl tokens, 14 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0101011, 9 decl tokens, 23 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0101021, 9 decl tokens, 32 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0101031, 9 decl tokens, 41 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0101041, 9 decl tokens, 24 instructions, type 2078
+[    0.449] [info] [t46f0] d3d: vertex shader B0101051, 9 decl tokens, 26 instructions, type 2078
+[    0.458] [error] [tb6f0] vulkan: vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe) failed: -13 at /workspaces/DoubleRecomp/app/src/main/cpp/scda/gpu/vulkan_pipeline.cpp:386
+[    0.461] [info] [te6f0] boot stage: first_frame_presented
+[    0.468] [error] [tb6f0] vulkan: vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe) failed: -13 at /workspaces/DoubleRecomp/app/src/main/cpp/scda/gpu/vulkan_pipeline.cpp:386
+[    0.471] [error] [tb6f0] vulkan: vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe) failed: -13 at /workspaces/DoubleRecomp/app/src/main/cpp/scda/gpu/vulkan_pipeline.cpp:386
+[    0.482] [info] [t46f0] open D:\Default\
+[    0.483] [info] [t46f0] ExQueryNonVolatileSetting 103 -> 400100
+[    0.483] [info] [t46f0] open D:\Default\DataXb\Videos\
+[    0.485] [error] [tb6f0] vulkan: vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe) failed: -13 at /workspaces/DoubleRecomp/app/src/main/cpp/scda/gpu/vulkan_pipeline.cpp:386
