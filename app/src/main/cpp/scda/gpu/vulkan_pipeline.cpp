@@ -164,7 +164,7 @@ VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkR
         bool used = false;
         for (uint32_t r = 0; r < 16; r++)
             if ((k.regs >> r) & 1 && (k.elements[r] >> 8 & 0xFF) == i) used = true;
-        if (!used || !k.strides[i]) continue;
+        if (!used) continue;
         binds[nbind++] = {i, k.strides[i], VK_VERTEX_INPUT_RATE_VERTEX};
     }
     VkVertexInputAttributeDescription attrs[16]{};

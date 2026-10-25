@@ -1427,15 +1427,31 @@ private:
         Frame& f = g_ctx.Current();
         std::array<VkBuffer, 16> bufs{};
         std::array<VkDeviceSize, 16> offs{};
-        for (uint32_t i = 0; i < a.buffer_count; i++) {
-            const VertexBuffer& b = a.buffers[i];
-            Upload vb = AllocUpload(b.bytes, 16);
+        uint32_t bind_count = a.buffer_count;
+        for (uint32_t r = 0; r < 16; r++) {
+            if (!((a.regs >> r) & 1)) continue;
+            bind_count = std::max<uint32_t>(bind_count, uint32_t(a.elements[r].buffer) + 1);
+        }
+        Upload zero;
+        for (uint32_t i = 0; i < bind_count; i++) {
+            const VertexBuffer* b = i < a.buffer_count ? &a.buffers[i] : nullptr;
+            if (!b || !b->src || !b->bytes) {
+                if (!zero.buf) {
+                    zero = AllocUpload(64, 16);
+                    if (!zero.buf) return;
+                    std::memset(zero.cpu, 0, 64);
+                }
+                bufs[i] = zero.buf;
+                offs[i] = zero.off;
+                continue;
+            }
+            Upload vb = AllocUpload(b->bytes, 16);
             if (!vb.buf) return;
-            std::memcpy(vb.cpu, b.src, b.bytes);
+            std::memcpy(vb.cpu, b->src, b->bytes);
             bufs[i] = vb.buf;
             offs[i] = vb.off;
         }
-        if (a.buffer_count) vkCmdBindVertexBuffers(f.cmd, 0, a.buffer_count, bufs.data(), offs.data());
+        if (bind_count) vkCmdBindVertexBuffers(f.cmd, 0, bind_count, bufs.data(), offs.data());
         if (a.index_count) {
             uint32_t ibytes = a.index_count * (a.index16 ? 2 : 4);
             Upload ib = AllocUpload(ibytes, 4);
