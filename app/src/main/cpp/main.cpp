@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 
     // the runtime log: <app files>/logs/scda_NNN.log, and logcat under the "scda" tag
     logx::Init((app::ExeDir() / "logs").string(), "scda", false);
-    LOGI("shell: SCDA Port 0.2.3 host starting, log %s", logx::Path().c_str());
+    LOGI("shell: SCDA Port 0.2.4 host starting, log %s", logx::Path().c_str());
 
     SDL_Window* window = SDL_CreateWindow("SCDA", 0, 0,
                                           SDL_WINDOW_FULLSCREEN | SDL_WINDOW_RESIZABLE |
