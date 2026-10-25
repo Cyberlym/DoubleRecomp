@@ -270,8 +270,14 @@ VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkR
     VkPipeline pipe = VK_NULL_HANDLE;
     {
         std::lock_guard create_lock(g_pipe_create_lock);
-        if (!VKCHECK(vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe)))
+        VkResult r = vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe);
+        if (r != VK_SUCCESS) {
+            LOGE("vulkan: vkCreateGraphicsPipelines failed: %d, key zen=%u zfunc=0x%x sten=%u sfunc=0x%x blend=%u "
+                 "src=0x%x dst=0x%x op=0x%x topo=0x%x cull=%u fill=%u has_ds=%u rtfmt=%u",
+                 int(r), k.zen, k.zfunc, k.sten, k.sfunc, k.blend, k.src, k.dst, k.op, k.topo, k.cull, k.fill, k.has_ds,
+                 k.rtfmt);
             return VK_NULL_HANDLE;
+        }
     }
     return pipe;
 }

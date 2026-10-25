@@ -714,6 +714,8 @@ bool ResizeSwap() {
     Ctx& c = g_ctx;
     VkSurfaceCapabilitiesKHR cap{};
     if (!VKCHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(c.phys, c.surface, &cap))) return false;
+    LOGI("vulkan: surface caps extent %ux%u, transform %u, supportedTransforms 0x%x", cap.currentExtent.width,
+         cap.currentExtent.height, uint32_t(cap.currentTransform), uint32_t(cap.supportedTransforms));
     if (!cap.currentExtent.width || !cap.currentExtent.height) return false;
     uint32_t count = 0;
     VKCHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(c.phys, c.surface, &count, nullptr));
