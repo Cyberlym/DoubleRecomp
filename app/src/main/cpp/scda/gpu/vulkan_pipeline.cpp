@@ -49,7 +49,7 @@ VkBlendOp BlendOp(uint32_t v) {
 
 VkCompareOp Cmp(uint32_t v) {
     uint32_t n = v >= 0x200 && v <= 0x207 ? v - 0x200 : 7;
-    return VkCompareOp(n + 1);
+    return VkCompareOp(n);
 }
 
 VkStencilOp StencilOp(uint32_t v) {

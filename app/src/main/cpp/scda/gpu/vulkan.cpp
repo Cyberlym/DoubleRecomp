@@ -353,7 +353,7 @@ SamplerDesc StageSampler(const State& s, int i, const std::array<uint8_t, 4>& sh
         d.mip = VK_FILTER_NEAREST;
         d.mipmap = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         d.compare = true;
-        d.compare_op = VkCompareOp(swap[CmpOp(s.rs[kRsShadowFunc]) - 1] + 1);
+        d.compare_op = VkCompareOp(swap[CmpOp(s.rs[kRsShadowFunc]) - 1]);
         d.aniso = 1;
     }
     return d;
