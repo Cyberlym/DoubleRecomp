@@ -1,126 +1,99 @@
-# SCDA Port — Etapa 1: Casca nativa Android (diagnóstico)
+# SCDA Port — Port nativo Android (concluído)
 
-Base 100% nativa (Android NDK + C/C++ + CMake + SDL3) para o futuro port de
-Splinter Cell: Double Agent ([SCDA-XBERecomp](https://github.com/TGP482/SCDA-XBERecomp)).
-Sem emuladores de PC, sem Wine, sem Box64, sem driver Turnip.
+Port nativo de Splinter Cell: Double Agent (Xbox) para Android ARM64, via recompilação
+estática do XBE ([SCDA-XBERecomp](https://github.com/TGP482/SCDA-XBERecomp)).
+Sem emuladores, sem Wine, sem Box64, sem Turnip: o código do jogo roda AOT como
+biblioteca nativa, com renderização Vulkan direta.
 
-**Escopo desta etapa:** apenas a casca de diagnóstico. Nada de XBE, jogo,
-DirectX ou port nesta fase.
-
-## Arquitetura escolhida
-
-Investigação prévia (fonte SDL3 3.4.18 + `docs/README-android.md`):
-
-- A SDL3 **não** exporta `ANativeActivity_onCreate` — a integração oficial no
-  Android é a `SDLActivity` (Java, pacote `org.libsdl.app`) com ponte JNI
-  implementada dentro da `libSDL3.so` (`src/core/android/SDL_android.c`).
-- Portanto, a casca segue a **integração oficial da SDL3**, preservando apenas
-  o Java estritamente necessário:
+## Arquitetura
 
 ```
-ScdaActivity (6 linhas, única classe própria)
-  └─ SDLActivity (oficial SDL3 3.4.18, intocada)
-       ├─ System.loadLibrary("SDL3")        → libSDL3.so
-       ├─ System.loadLibrary("scda_port")   → libscda_port.so
-       └─ dlopen + dlsym("SDL_main")        → int main() do main.cpp
+LauncherActivity (Java) ── instalar ISO (SAF) ──> InstallService (foreground)
+       │                                              └─ valida XDVDFS, TitleID, SHA-256
+       └─ JOGAR ──> ScdaActivity (estende SDLActivity oficial)
+                        ├─ System.loadLibrary("SDL3")      → libSDL3.so (compartilhada)
+                        ├─ System.loadLibrary("scda_port")  → libscda_port.so
+                        └─ dlsym("SDL_main") → main.cpp (host C++)
+                                                     ├─ runtime: kernel HLE, D3D8→Vulkan, áudio SDL
+                                                     ├─ jogo: 4140 funções recompiladas (sub_*)
+                                                     └─ HLSL→SPIR-V em runtime (shaderc estático)
 ```
 
-- `main.cpp` usa `#include <SDL3/SDL_main.h>` (que exporta `SDL_main` e roda
-  `int main(int argc, char* argv[])` no thread nativo da Activity).
-- Toda a lógica da casca está em C/C++. Janela nativa Android: a SurfaceView
-  da SDLActivity é adotada pela SDL3 via `ANativeWindow` (EGL/GLES pelo renderer).
-- Nenhum DEX artificial, nenhum JAR inútil, nenhum emulador.
+- **Uma .so carrega tudo**: runtime + jogo recompilado + shaderc estático (escondido,
+  `--exclude-libs,ALL`). SDL3 vai compartilhada (`libSDL3.so`) empacotada no APK.
+- **Renderização nativa**: backend Vulkan (`libvulkan.so` no NEEDED), shaders HLSL do jogo
+  compilados para SPIR-V pelo shaderc v2025.5 (estático dentro da .so), com cache de pipelines em disco.
+- **ISO fora do APK**: o jogo é instalado pelo launcher na pasta do app
+  (`game/<Título>/<Título>.iso`), copiado via SAF com validação de volume XDVDFS,
+  TitleID `0x5553005E` e SHA-1 do `default.xbe` (`91290baf…`, conferido nos dois lados:
+  Java grava no `install.json`, o C++ confere o XBE dentro da ISO contra o
+  `kImageSha1` gerado pelo CMake a partir do `default.xbe` no configure).
 
-## Árvore de arquivos criados
+## Build
 
-```
-DoubleRecomp/
-├── settings.gradle.kts              # AGP via pluginManagement
-├── build.gradle.kts                 # AGP 9.4.1
-├── gradle.properties                # sem AndroidX (Java da SDL é android.* puro)
-├── debug.keystore                   # assinatura de debug do projeto
-├── dist/scda_port.apk               # APK final assinado (cópia de validação)
-├── third_party/SDL/                 # fonte SDL 3.4.18 (compilada da origem)
-└── app/
-    ├── build.gradle.kts             # ABI arm64-v8a, CMake, assinatura debug
-    └── src/main/
-        ├── AndroidManifest.xml      # Activity = ScdaActivity
-        ├── java/
-        │   ├── org/libsdl/app/*.java          # 12 classes oficiais SDL3
-        │   └── com/tgp482/scda/ScdaActivity.java  # carrega "scda_port"
-        ├── res/values/{strings.xml,styles.xml} + mipmap-*/ic_launcher.png
-        └── cpp/
-            ├── CMakeLists.txt   # libscda_port.so + SDL3 compartilhada
-            └── main.cpp         # casca completa (C/C++)
-```
-
-## O que a casca testa (6 botões)
-
-| Botão | O que faz |
-|---|---|
-| TESTAR RENDERIZAÇÃO | Troca a cor de fundo (paleta) e verifica retorno de `SDL_RenderClear`/`SDL_RenderPresent` |
-| TESTAR RECREATE | **Recreate real**: destrói e recria renderer + textura de teste na MESMA janela, com frame de verificação |
-| TESTAR PAUSA/RETORNO | Instruções + contadores de `WILL/DID_ENTER_BACKGROUND` e `WILL/DID_ENTER_FOREGROUND` (reais, via `SDL_SetEventFilter`) |
-| TESTAR TOQUE | Contadores de `SDL_EVENT_FINGER_DOWN/MOTION/UP` + últimas coordenadas |
-| VER LOGS | Ring buffer das últimas linhas na tela + caminho do arquivo de log |
-| SAIR | Encerramento limpo: destrói renderer → janela → `SDL_Quit()` → `return 0` |
-
-### Estabilidade / recreate
-- A **janela nunca é destruída** em pausa ou recreate (só renderer e recursos).
-- `SDL_EVENT_RENDER_DEVICE_RESET`/`DEVICE_LOST` disparam recreate automático.
-- Em background o loop para de renderizar (nenhuma chamada de render fora de
-  foreground) e a SDL3 bloqueia o loop pausado (`SDL_HINT_ANDROID_BLOCK_ON_PAUSE`).
-- Nenhuma chamada bloqueante no thread principal.
-- Isso reduz riscos, mas **não garante ausência absoluta de crashes** — o
-  objetivo é expor problemas antes do port.
-
-### Logs
-- Em tela (VER LOGS), no **logcat** (tag `SCDA`) e em **arquivo** no
-  armazenamento interno privado do app (`SDL_GetPrefPath` →
-  `/data/user/0/com.tgp482.scda_port/files/scda_log.txt`).
-  Nada é escrito em armazenamento externo (pasta "proibida" em Android 10+).
-- Leitura sem root (build debug):
-  `adb shell run-as com.tgp482.scda_port cat files/scda_log.txt`
-
-## Build (incremental)
-
-Ambiente: SDK 35 + Build-Tools 36.0.0, NDK r26.1.10909125, Gradle 9.7.1,
-AGP 9.4.1, CMake 3.28.3 + Ninja, JDK 25.
+Ambiente: SDK 35 + Build-Tools 36.0.0, NDK r26.1.10909125, Gradle 9.7.1, AGP 9.4.1,
+CMake 3.28.3 + Ninja, JDK 25.
 
 ```bash
-cd DoubleRecomp
-gradle assembleDebug            # build incremental (CMake/Ninja em app/.cxx)
+gradle assembleDebug        # APK: app/build/outputs/apk/debug/scda_port-debug.apk
 ```
 
-O primeiro build compila a SDL3 inteira; os seguintes recompilam só o que mudou
-(não fazer `clean` a cada alteração — o cache do CMake fica em `app/.cxx/`).
+- O `assembleDebug` compila o nativo em **Release** (`-DCMAKE_BUILD_TYPE=Release`):
+  o .so do jogo sai com `-O2`, sem symtab de debug (AGP aplica `llvm-strip`).
+- Dependência: o **shaderc v2025.5 das fontes locais** (`build-android/_deps/*-src`,
+  declaradas por `SOURCE_DIR` no FetchContent — nada é baixado). Se a pasta sumir, o
+  configure explica e aborta. (O pré-compilado do NDK, v2022.3, fica de fora de propósito:
+  o glslang antigo emite um SPIR-V que a reflexão do runtime rejeita.)
 
-## Validação executada (resultados reais)
+- Incremental: não fazer `clean` — o cache CMake/Ninja vive em `app/.cxx/Release`.
+  O código gerado (`generated/game/x86_recomp.*.cpp`, 128 unidades) compila devagar;
+  só recompila o que mudou.
+
+## Escopo do build (por acordo)
+
+Dentro: campanha completa (`default.xbe`), opções in-game (F10/menu do jogo),
+saves, cache de shaders, gamepad/touch via SDL3.
+Fora: versus/co-op (`sc4_adv.xbe` é outra imagem, precisaria de outra lib),
+online/XNet (HLE responde "sem rede"), voz (Opus), communicator.
+
+## Validação do APK (auditoria real, build 0.2.1)
 
 ```
-$ unzip -l dist/scda_port.apk | grep lib/
-  lib/arm64-v8a/libSDL3.so        (3.681.216 B)
-  lib/arm64-v8a/libscda_port.so   (22.040 B)
+$ unzip -l dist/scda_port.apk
+  lib/arm64-v8a/libSDL3.so        2.367.328 B
+  lib/arm64-v8a/libscda_port.so   37.412.432 B   ← jogo recompilado + shaderc v2025.5 estático dentro
+  classes*.dex, res/, resources.arsc — nada além disso (sem iso/xbe/fontes/objetos)
 
-$ apksigner verify --print-certs dist/scda_port.apk
-  Verifies  (v2 scheme: true)
-  Cert SHA-256: a6fe96cb911d16f727b1e8f302401b313b03eae18007e286b70769718cb80637
-  = fingerprint do debug.keystore do projeto
-
-$ llvm-nm -D libscda_port.so | grep SDL_main   →  T SDL_main  (exportado)
-$ llvm-readelf -d libscda_port.so              →  NEEDED libSDL3.so, SONAME ok
-$ aapt2 dump badging                           →  launchable-activity
-                                                  com.tgp482.scda.ScdaActivity
-                                                  native-code: arm64-v8a
+$ llvm-readelf -d libscda_port.so → NEEDED: libSDL3.so, liblog, libandroid,
+                                    libvulkan.so, libm, libdl, libc
+$ llvm-nm -D … | grep SDL_main     → T SDL_main (exportado p/ SDLActivity)
+$ llvm-nm …  | grep -c sub_*       → 4140 funções recompiladas presentes
+$ llvm-nm -D … | grep -c shaderc_  → 0 (estático, escondido por --exclude-libs)
+$ apksigner verify                 → v2 ok, cert do debug.keystore do projeto
+$ aapt2 dump badging               → launchable LauncherActivity, native-code: arm64-v8a
+sha256 do APK: 0ecec12d8e93c3a266f7b09376fad0524db8d2c949763cda0d512d0af3accbe9
 ```
+
+### shaderc: por que v2025.5 e não o pré-compilado do NDK
+
+O pré-compilado do NDK (v2022.3) compila os shaders, mas o glslang antigo emite um
+SPIR-V sem os nomes/bindings que a reflexão do runtime lê — o blit shader falhava
+com `reflection failed` no boot do jogo no aparelho. O build usa as fontes v2025.5
+que já estão no disco (`build-android/_deps`, declaradas por `SOURCE_DIR` no
+FetchContent, zero rede), e a versão do cache de shaders subiu para 3: o cache
+antigo do aparelho se descarta sozinho no primeiro boot, sem limpar dados do jogador.
 
 ## Teste em dispositivo
 
-`adb devices` no momento da entrega: **nenhum dispositivo conectado** — os
-testes de abertura/botões/recreate/ciclo de vida em hardware ficam pendentes.
-Quando houver dispositivo:
+`adb devices` na entrega: **nenhum dispositivo conectado** — o boot no hardware
+fica pendente. Quando houver:
 
 ```bash
 adb install -r dist/scda_port.apk
-adb logcat -s SCDA SDL
+adb logcat -s scda SDL          # estágios do boot: runtime_init → iso_open →
+                                # xbe_loaded → game_entry → vulkan_ready → first_frame
 ```
+
+O launcher diagnostica sozinho: se o jogo não chegar ao primeiro frame, o diálogo
+da próxima abertura mostra o último estágio do boot (`logs/boot_stage.txt`) e o
+botão compartilha o log (`logs/scda_NNN.log`).

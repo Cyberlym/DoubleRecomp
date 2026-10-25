@@ -31,7 +31,9 @@ namespace {
 // shaders.bin: FileHeader, then a Record and its SPIR-V for each shader as it is compiled; a torn tail from a killed
 // process is cut off at the next start
 constexpr uint32_t kShaderMagic = 0x48534353;  // 'SCSH'
-constexpr uint32_t kShaderVersion = 2;         // bump when the compile flags change (Vulkan SPIR-V now)
+constexpr uint32_t kShaderVersion = 4;         // bump when the compile flags change (Vulkan SPIR-V now;
+                                               // 4: debug info on — glslang emits OpName, the modules the
+                                               // reflection reads names from; the nameless ones are discarded)
 constexpr uint64_t kMaxShaderFile = 256ull << 20;
 constexpr int64_t kSaveIdleMs = 10000;
 // <exe>_pipeline_keys.bin: FileHeader, then a KeyRecord and its bytes for each pipeline the first time it is drawn

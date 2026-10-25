@@ -25,18 +25,20 @@ constexpr uint32_t spv_OpVariable = 59;
 constexpr uint32_t spv_OpEntryPoint = 15;
 constexpr uint32_t spv_DecorationBinding = 33;
 constexpr uint32_t spv_DecorationDescriptorSet = 34;
-constexpr uint32_t spv_StorageUniformConstant = 1;
+constexpr uint32_t spv_StorageUniformConstant = 0;  // SPIR-V's storage classes: 0, then input 1, uniform 2
 constexpr uint32_t spv_StorageUniform = 2;
 constexpr uint64_t kSourceCheck = 0x5CDA0002C0FFEE11ull;  // seed of the second source hash the disk cache keeps
 
-// reads a module's names, descriptor sets, bindings and what each variable holds
+// reads a module's names, descriptor sets, bindings and what each variable holds. A cbuffer's
+// variable carries no OpName of its own: the name lives on the struct its pointer points at, so
+// both passes resolve names through the pointer.
 bool ReflectSpirv(const uint8_t* code, size_t bytes, Reflect& out) {
     if (bytes < 20 || (bytes & 3)) return false;
     const uint32_t* w = reinterpret_cast<const uint32_t*>(code);
     if (w[0] != 0x07230203) return false;
     uint32_t n = uint32_t(bytes / 4);
     struct Var {
-        uint32_t pointee = 0, storage = 0, set = 0, binding = 0;
+        uint32_t type = 0, storage = 0, set = 0, binding = 0;
     };
     std::unordered_map<uint32_t, uint32_t> pointee;   // pointer type id -> pointee type id
     std::unordered_map<uint32_t, uint8_t> kind;       // type id: 1 image, 2 sampler, 3 sampled image
@@ -77,16 +79,27 @@ bool ReflectSpirv(const uint8_t* code, size_t bytes, Reflect& out) {
         }
         i += len;
     }
+    auto name_of = [&](uint32_t id, uint32_t type) -> std::string {
+        auto nm = names.find(id);
+        if (nm != names.end() && !nm->second.empty()) return nm->second;
+        // the cbuffer's variable is unnamed: the struct it points at carries the name
+        auto pt = pointee.find(type);
+        if (pt != pointee.end()) {
+            auto sn = names.find(pt->second);
+            if (sn != names.end()) return sn->second;
+        }
+        return {};
+    };
     for (auto& [id, v] : vars) {
-        uint32_t pointee_type = v.pointee;
+        uint32_t pointee_type = v.type;
         auto pp = pointee.find(pointee_type);
         if (pp != pointee.end()) pointee_type = pp->second;
-        auto nm = names.find(id);
-        if (nm == names.end()) continue;
+        std::string name = name_of(id, v.type);
+        if (name.empty()) continue;
         ReflectBinding b{};
         b.set = v.set;
         b.binding = v.binding;
-        b.name = nm->second;
+        b.name = std::move(name);
         if (v.storage == spv_StorageUniform) {
             b.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         } else if (v.storage == spv_StorageUniformConstant) {
@@ -118,10 +131,12 @@ bool RewriteBindings(std::vector<uint8_t>& code) {
     uint32_t n = uint32_t(code.size() / 4);
     struct Use {
         std::string name;
+        uint32_t type = 0;
         uint32_t binding = 0;
         uint32_t storage = 0;
     };
     std::unordered_map<uint32_t, Use> vars;  // result id -> what it holds
+    std::unordered_map<uint32_t, uint32_t> pointee;
     for (uint32_t i = 5; i < n;) {
         uint32_t op = w[i] & 0xFFFF, len = w[i] >> 16;
         if (!len || i + len > n) return false;
@@ -130,9 +145,32 @@ bool RewriteBindings(std::vector<uint8_t>& code) {
             std::string name(text, strnlen(text, (len - 2) * 4));
             if (!name.empty()) vars[w[i + 1]].name = name;
         } else if (op == spv_OpVariable) {
+            vars[w[i + 2]].type = w[i + 1];
             vars[w[i + 2]].storage = w[i + 3];
+        } else if (op == spv_OpTypePointer) {
+            pointee[w[i + 1]] = w[i + 3];
         }
         i += len;
+    }
+    // a cbuffer's variable is unnamed: the struct its pointer points at carries the name, and the
+    // names of types were recorded under their type ids, which no variable shares
+    {
+        std::unordered_map<uint32_t, std::string> type_names;
+        for (uint32_t i = 5; i < n;) {
+            uint32_t op = w[i] & 0xFFFF, len = w[i] >> 16;
+            if (op == spv_OpName) {
+                const char* text = reinterpret_cast<const char*>(w + i + 2);
+                type_names[w[i + 1]] = std::string(text, strnlen(text, (len - 2) * 4));
+            }
+            i += len;
+        }
+        for (auto& [id, u] : vars) {
+            if (!u.name.empty()) continue;
+            auto pt = pointee.find(u.type);
+            if (pt == pointee.end()) continue;
+            auto tn = type_names.find(pt->second);
+            if (tn != type_names.end() && !tn->second.empty()) u.name = tn->second;
+        }
     }
     // the numbers the renderer writes descriptors by
     auto slot = [](const std::string& name, uint32_t storage) -> int {
@@ -218,6 +256,10 @@ bool CompileHlsl(const std::string& src, const char* entry, shaderc_shader_kind 
         shaderc_compile_options_set_source_language(g_options, shaderc_source_language_hlsl);
         shaderc_compile_options_set_optimization_level(g_options, shaderc_optimization_level_performance);
         shaderc_compile_options_set_target_env(g_options, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_1);
+        // load-bearing: glslang only emits OpName with debug info on, and both the reflection and
+        // the binding rewriter read the resources' names from OpName (the renderer binds by name);
+        // without it every module reflects to zero bindings and the blit fails to build
+        shaderc_compile_options_set_generate_debug_info(g_options);
     }
     shaderc_compilation_result_t r = shaderc_compile_into_spv(g_compiler, src.data(), src.size(), kind, entry, "scda",
                                                               g_options);

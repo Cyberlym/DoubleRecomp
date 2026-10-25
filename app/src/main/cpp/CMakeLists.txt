@@ -5,11 +5,23 @@ cmake_minimum_required(VERSION 3.22.1)
 project(scda_port LANGUAGES C CXX)
 
 set(SCDA_SDL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/SDL")
-# shaderc built once from the NDK's own sources (sources/third_party/shaderc), no repository fetched
-get_filename_component(NDK_DIR "${CMAKE_ANDROID_NDK}" ABSOLUTE)
-set(SHADERC_ROOT "${NDK_DIR}/sources/third_party/shaderc")
-set(SCDA_SHADERC_DIR "${SCDA_SHADERC_DIR}" CACHE PATH
-    "shaderc's NDK build: libshaderc.a and libshaderc/include")
+# shaderc v2025.5 from the sources already on disk (build-android/_deps, fetched once by the
+# original build; no network here). The runtime's SPIR-V reflection is written for this
+# glslang's output dialect; the NDK's own prebuilt (v2022.3) compiles fine, but its older
+# glslang emits modules the reflection rejects (the on-device blit shader failure).
+set(SCDA_SHADERC_DEPS "${CMAKE_CURRENT_SOURCE_DIR}/../../../../build-android/_deps")
+foreach(comp IN ITEMS spirv-headers spirv-tools glslang shaderc)
+    if(NOT EXISTS "${SCDA_SHADERC_DEPS}/${comp}-src/CMakeLists.txt")
+        message(FATAL_ERROR "shaderc source ${comp} missing at ${SCDA_SHADERC_DEPS}/${comp}-src: "
+            "the modern shaderc the runtime's reflection needs; restore the folder")
+    endif()
+endforeach()
+include(FetchContent)
+# declared with SOURCE_DIR and no download method: the folders are already on disk, nothing is fetched
+FetchContent_Declare(spirv-headers SOURCE_DIR "${SCDA_SHADERC_DEPS}/spirv-headers-src")
+FetchContent_Declare(spirv-tools SOURCE_DIR "${SCDA_SHADERC_DEPS}/spirv-tools-src")
+FetchContent_Declare(glslang SOURCE_DIR "${SCDA_SHADERC_DEPS}/glslang-src")
+FetchContent_Declare(shaderc SOURCE_DIR "${SCDA_SHADERC_DEPS}/shaderc-src")
 set(SCDA_TOMLPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/tomlplusplus")
 
 # SDL configuration: shared library only, no tests/examples
@@ -53,8 +65,8 @@ set(ALIASES_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_a
 set(FUNC_MAPPING_IN "${CMAKE_CURRENT_SOURCE_DIR}/../../../../generated/game/x86_func_mapping.cpp")
 set(FUNC_MAPPING_OUT "${CMAKE_CURRENT_BINARY_DIR}/x86_func_mapping.cpp")
 add_custom_command(OUTPUT "${FUNC_MAPPING_OUT}"
-    COMMAND ${CMAKE_COMMAND} -E copy "${FUNC_MAPPING_IN}" "${FUNC_MAPPING_OUT}"
-    COMMAND sed -i -E "s/^const (uint32_t|X86FuncMapping)/extern \"C\" const \\1/" "${FUNC_MAPPING_OUT}"
+    COMMAND ${CMAKE_COMMAND} -DFUNC_MAPPING_IN=${FUNC_MAPPING_IN} -DFUNC_MAPPING_OUT=${FUNC_MAPPING_OUT}
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/patch_mapping.cmake"
     DEPENDS "${FUNC_MAPPING_IN}"
     COMMENT "patching the recompiled tables for ELF linkage")
 set_source_files_properties(${ALIASES_SOURCE} PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1")
@@ -63,7 +75,7 @@ set_source_files_properties(${FUNC_MAPPING_OUT} PROPERTIES GENERATED TRUE COMPIL
 # resolves at link time, strong over the weak
 set_source_files_properties(${ALIASES_SOURCE} PROPERTIES COMPILE_DEFINITIONS "X86_ALIAS_UNIT=1")
 
-add_library(scda_port SHARED ${RUNTIME_SOURCES} ${GENERATED_SOURCES} ${ALIASES_SOURCE})
+add_library(scda_port SHARED ${RUNTIME_SOURCES} ${GENERATED_SOURCES} ${ALIASES_SOURCE} ${FUNC_MAPPING_OUT})
 
 target_compile_features(scda_port PRIVATE cxx_std_20)
 
@@ -77,33 +89,30 @@ target_include_directories(scda_port PRIVATE
     "${SCDA_TOMLPP_DIR}"
 )
 
-if(NOT SCDA_SHADERC_DIR)
-    # ndk-build lands it under libs/c++_static/<abi>; a flat libs/<abi> also works
-    foreach(candidate "libs/c++_static/${ANDROID_ABI}" "libs/${ANDROID_ABI}")
-        if(EXISTS "${SHADERC_ROOT}/${candidate}/libshaderc.a")
-            set(SCDA_SHADERC_DIR "${SHADERC_ROOT}/${candidate}")
-            break()
-        endif()
-    endforeach()
-    if(NOT SCDA_SHADERC_DIR)
-        set(SCDA_SHADERC_DIR "${SHADERC_ROOT}/libs/${ANDROID_ABI}")
-    endif()
+# the modern shaderc, static, hidden inside the .so by --exclude-libs,ALL: the same
+# v2025.5 the runtime's reflection was developed against, from the local sources
+set(SPIRV_HEADERS_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)
+set(SPIRV_TOOLS_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(SPIRV_TOOLS_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(SPIRV_TOOLS_INSTALL OFF CACHE BOOL "" FORCE)
+set(SPIRV_TOOLS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLSLANG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLSLANG_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+set(GLSLANG_INSTALL OFF CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_INSTALL ON CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_TESTS ON CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_EXAMPLES ON CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_EXECUTABLES ON CACHE BOOL "" FORCE)
+set(SHADERC_SKIP_COPYRIGHT_CHECK ON CACHE BOOL "" FORCE)
+set(SHADERC_ENABLE_WERROR_COMPILE OFF CACHE BOOL "" FORCE)
+include(FetchContent)
+FetchContent_MakeAvailable(spirv-headers spirv-tools glslang shaderc)
+# shaderc always defines a shared twin; it must never build (it would land in the APK)
+if(TARGET shaderc_shared)
+    set_target_properties(shaderc_shared PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
-# the headers: the NDK package keeps them at <pkg>/include (and libshaderc/include is the same tree)
-if(EXISTS "${SHADERC_ROOT}/include/shaderc/shaderc.h")
-    target_include_directories(scda_port PRIVATE "${SHADERC_ROOT}/include")
-else()
-    target_include_directories(scda_port PRIVATE "${SCDA_SHADERC_DIR}/../../libshaderc/include")
-endif()
-
-# the static shaderc and its pieces, one archive: libshaderc.a
-find_library(SCDA_SHADERC_LIB shaderc PATHS "${SCDA_SHADERC_DIR}" NO_DEFAULT_PATH)
-if(NOT SCDA_SHADERC_LIB)
-    message(FATAL_ERROR "libshaderc.a not found in ${SCDA_SHADERC_DIR}; build it with ndk-build "
-        "NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk APP_ABI=${ANDROID_ABI} APP_STL=c++_static "
-        "libshaderc_combined in ${CMAKE_ANDROID_NDK}/sources/third_party/shaderc")
-endif()
-target_link_libraries(scda_port PRIVATE ${SCDA_SHADERC_LIB})
+target_include_directories(scda_port PRIVATE "${SCDA_SHADERC_DEPS}/shaderc-src/libshaderc/include")
+target_link_libraries(scda_port PRIVATE shaderc)
 
 target_link_libraries(scda_port PRIVATE SDL3::SDL3 log android vulkan)
 

@@ -13,8 +13,8 @@ android {
         applicationId = "com.tgp482.scda_port"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 4
+        versionName = "0.2.2"
 
         // Apenas ARM64.
         ndk {
@@ -96,6 +96,13 @@ android {
         jniLibs {
             // AGP ja faz strip (llvm-strip) de cada .so no empacotamento.
             useLegacyPackaging = false
+            // orfaos da cadeia shaderc (targets SHARED que o CMake de terceiros sempre define):
+            // nada linka contra eles, o shaderc vai estatico dentro do libscda_port.so
+            excludes += listOf(
+                "**/libshaderc_shared.so",
+                "**/libSPIRV-Tools-shared.so",
+                "**/libglslang.so",
+            )
         }
     }
 }

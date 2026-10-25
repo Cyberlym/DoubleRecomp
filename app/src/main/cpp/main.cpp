@@ -67,7 +67,7 @@ extern "C" void scda_on_shutdown(int code) {
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
-    SDL_SetAppMetadata("SCDA Port", "0.2.0", "com.tgp482.scda_port");
+    SDL_SetAppMetadata("SCDA Port", "0.2.2", "com.tgp482.scda_port");
 
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         LOGE("shell: SDL_Init failed: %s", SDL_GetError());
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 
     // the runtime log: <app files>/logs/scda_NNN.log, and logcat under the "scda" tag
     logx::Init((app::ExeDir() / "logs").string(), "scda", false);
-    LOGI("shell: SCDA Port host starting, log %s", logx::Path().c_str());
+    LOGI("shell: SCDA Port 0.2.2 host starting, log %s", logx::Path().c_str());
 
     SDL_Window* window = SDL_CreateWindow("SCDA", 0, 0,
                                           SDL_WINDOW_FULLSCREEN | SDL_WINDOW_RESIZABLE |
