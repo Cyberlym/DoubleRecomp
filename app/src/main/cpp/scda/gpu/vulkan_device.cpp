@@ -155,6 +155,11 @@ bool CreateInstanceAndDevice() {
         }
 
     const char* dev_ext[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    VkPhysicalDeviceFeatures supported{};
+    vkGetPhysicalDeviceFeatures(c.phys, &supported);
+    VkPhysicalDeviceFeatures enabled{};
+    enabled.samplerAnisotropy = supported.samplerAnisotropy;
+    enabled.fillModeNonSolid = supported.fillModeNonSolid;
     float prio = 1;
     VkDeviceQueueCreateInfo qc{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
     qc.queueFamilyIndex = c.gfx_family;
@@ -165,6 +170,7 @@ bool CreateInstanceAndDevice() {
     dc.pQueueCreateInfos = &qc;
     dc.enabledExtensionCount = 1;
     dc.ppEnabledExtensionNames = dev_ext;
+    dc.pEnabledFeatures = &enabled;
     if (!VKCHECK(vkCreateDevice(c.phys, &dc, nullptr, &c.dev))) return false;
     vkGetDeviceQueue(c.dev, c.gfx_family, 0, &c.queue);
 
@@ -196,7 +202,9 @@ bool CreateInstanceAndDevice() {
         LOGE("vulkan: BGRA8 is not renderable here");
         return false;
     }
-    c.aniso_cap = c.props.limits.maxSamplerAnisotropy ? std::min<uint32_t>(c.props.limits.maxSamplerAnisotropy, 16) : 1;
+    c.aniso_cap = enabled.samplerAnisotropy && c.props.limits.maxSamplerAnisotropy
+                      ? std::min<uint32_t>(c.props.limits.maxSamplerAnisotropy, 16)
+                      : 1;
 
     VkCommandPoolCreateInfo pc{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
     pc.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -244,8 +252,8 @@ bool CreateInstanceAndDevice() {
     gpu::CollectPipelineCacheData = +[](const std::function<bool(const void*, size_t)>& write) {
         (void)CollectPipelineCache(write);
     };
-    LOGI("vulkan: device ready, depth %d, BC %d%d%d, aniso %u", int(c.depth_fmt), int(c.bc_support[0]),
-         int(c.bc_support[1]), int(c.bc_support[2]), c.aniso_cap);
+    LOGI("vulkan: device ready, depth %d, BC %d%d%d, aniso %u, nonSolid %d", int(c.depth_fmt), int(c.bc_support[0]),
+         int(c.bc_support[1]), int(c.bc_support[2]), c.aniso_cap, int(enabled.fillModeNonSolid));
     return true;
 }
 

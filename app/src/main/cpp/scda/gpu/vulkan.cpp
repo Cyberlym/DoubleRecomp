@@ -1104,7 +1104,7 @@ private:
         ci.mipLodBias = d.lod_bias;
         ci.minLod = d.min_lod;
         ci.maxLod = d.max_lod;
-        ci.anisotropyEnable = d.aniso > 1;
+        ci.anisotropyEnable = d.aniso > 1 && g_ctx.aniso_cap > 1;
         ci.maxAnisotropy = float(std::min<uint32_t>(d.aniso, g_ctx.aniso_cap));
         ci.compareEnable = d.compare;
         ci.compareOp = d.compare_op;

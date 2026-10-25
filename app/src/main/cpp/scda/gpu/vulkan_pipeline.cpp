@@ -52,6 +52,15 @@ VkCompareOp Cmp(uint32_t v) {
     return VkCompareOp(n);
 }
 
+bool FillNonSolid() {
+    static const bool supported = [] {
+        VkPhysicalDeviceFeatures f{};
+        vkGetPhysicalDeviceFeatures(g_ctx.phys, &f);
+        return f.fillModeNonSolid == VK_TRUE;
+    }();
+    return supported;
+}
+
 VkStencilOp StencilOp(uint32_t v) {
     switch (v) {
         case 0: return VK_STENCIL_OP_ZERO;
@@ -192,7 +201,10 @@ VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkR
     vp.scissorCount = 1;  // both dynamic
 
     VkPipelineRasterizationStateCreateInfo rs{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-    rs.polygonMode = k.fill == 2 ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;  // D3DFILL_WIREFRAME
+    const bool non_solid = FillNonSolid();
+    rs.polygonMode = k.fill == 2 && non_solid ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    if (k.fill == 2 && !non_solid)
+        LOG_FIRST(1, "vulkan: fillModeNonSolid unsupported, wireframe forced to fill");
     rs.cullMode = k.cull ? (k.ccw ? VK_CULL_MODE_FRONT_BIT : VK_CULL_MODE_BACK_BIT) : VK_CULL_MODE_NONE;
     rs.frontFace = k.ccw ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
     rs.depthClampEnable = VK_FALSE;  // D3D12's DepthClipEnable: clip past the z range
