@@ -30,28 +30,28 @@ Add android.sync.suppressAgpWarnings=UNSUPPORTED_PROJECT_OPTION_USE to the gradl
 > Task :app:mapDebugSourceSetPaths UP-TO-DATE
 > Task :app:compileDebugNavigationResources UP-TO-DATE
 > Task :app:mergeDebugResources UP-TO-DATE
-> Task :app:createDebugCompatibleScreenManifests
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
 > Task :app:extractDeepLinksDebug UP-TO-DATE
-> Task :app:processDebugMainManifest
-> Task :app:processDebugManifest
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
 > Task :app:preReleaseBuild UP-TO-DATE
 > Task :app:configureCMakeRelease[arm64-v8a]
+> Task :app:processDebugResources
 > Task :app:buildCMakeRelease[arm64-v8a]
+> Task :app:dexBuilderDebug UP-TO-DATE
+> Task :app:mergeProjectDexDebug UP-TO-DATE
 > Task :app:mergeDebugJniLibFolders UP-TO-DATE
 > Task :app:validateSigningDebug UP-TO-DATE
 > Task :app:writeDebugAppMetadata UP-TO-DATE
 > Task :app:writeDebugSigningConfigVersions UP-TO-DATE
-> Task :app:processDebugManifestForPackage
 > Task :app:mergeDebugNativeLibs
-> Task :app:processDebugResources
-> Task :app:dexBuilderDebug UP-TO-DATE
-> Task :app:mergeProjectDexDebug UP-TO-DATE
 > Task :app:stripDebugDebugSymbols
 > Task :app:packageDebug
 > Task :app:createDebugApkListingFileRedirect
 > Task :app:assembleDebug
 
-BUILD SUCCESSFUL in 26s
-37 actionable tasks: 11 executed, 26 up-to-date
+BUILD SUCCESSFUL in 40s
+37 actionable tasks: 7 executed, 30 up-to-date
 Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
 exit: 0

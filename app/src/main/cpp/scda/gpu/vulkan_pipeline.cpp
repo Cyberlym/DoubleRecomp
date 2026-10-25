@@ -12,6 +12,12 @@ namespace gpu::vk {
 
 namespace {
 
+// Adreno's driver returns VK_ERROR_UNKNOWN when two threads create pipelines through the same
+// VkPipelineCache at once (the async build thread's game pipelines and the render thread's blit
+// pipelines share g_ctx.pipe_cache): every creation in this file goes through this one lock,
+// so the cache is only ever used single-threaded
+std::mutex g_pipe_create_lock;
+
 VkBlendFactor Blend(uint32_t v, bool alpha) {
     switch (v) {
         case 0: return VK_BLEND_FACTOR_ZERO;
@@ -268,12 +274,6 @@ struct KeyedPipeline {
 
 std::mutex g_map_lock;
 std::unordered_map<uint64_t, KeyedPipeline*> g_map;
-
-// Adreno's driver returns VK_ERROR_UNKNOWN when two threads create pipelines through the same
-// VkPipelineCache at once (the async build thread's game pipelines and the render thread's blit
-// pipelines share g_ctx.pipe_cache): every creation in this file goes through this one lock,
-// so the cache is only ever used single-threaded
-std::mutex g_pipe_create_lock;
 
 constexpr uint64_t kPipelineSalt = 0x50534F4B45590000ull;  // 'PSOKEY'
 
