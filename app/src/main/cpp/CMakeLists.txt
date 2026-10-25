@@ -130,7 +130,7 @@ message(STATUS "recompiled image: default.xbe sha1 ${SCDA_XBE_SHA1}")
 
 target_compile_options(scda_port PRIVATE
     -O2
-    -g0
+    -g
     -fno-strict-aliasing
     -fvisibility=hidden
     -ffunction-sections
