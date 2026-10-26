@@ -105,4 +105,4 @@ O launcher diagnostica sozinho: se o jogo não chegar ao primeiro frame, o diál
 próxima abertura mostra o último estágio do boot (`logs/boot_stage.txt`) e o botão
 compartilha o log (`logs/scda_NNN.log`).
 
-**credits for RanggaCasper**
+**credits for RanggaCasper and TGP482**
