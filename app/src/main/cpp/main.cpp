@@ -7,6 +7,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdio>
+#include <filesystem>
 #include <string>
 
 #include "app/app.h"
@@ -23,6 +25,18 @@ namespace {
 
 using clock_ = std::chrono::steady_clock;
 std::atomic<bool> g_game_done{false};
+
+void QueueAndroidRelaunch() {
+    const std::filesystem::path marker = app::ExeDir() / "data" / "relaunch.pending";
+    std::error_code ec;
+    std::filesystem::create_directories(marker.parent_path(), ec);
+    if (FILE* f = std::fopen(marker.string().c_str(), "wb")) {
+        std::fputs("1\n", f);
+        std::fclose(f);
+    } else {
+        LOGE("shell: could not queue Android relaunch at %s", marker.string().c_str());
+    }
+}
 
 // the confirm dialog on the Android back key: never close a running game by accident
 bool ConfirmQuit() {
@@ -47,12 +61,14 @@ bool ConfirmQuit() {
 // the runtime's exit: the game's exit menu or a fatal call reaches these through boot.cpp's weak hooks
 extern "C" void scda_on_relaunch(const char* exe) {
     // one image per build here: default.xbe is compiled in, versus would need its own library
-    LOGW("shell: relaunch to %s asked, but this build carries %s only", exe, IMAGE_XBE);
+    LOGI("shell: queueing Android relaunch to %s (%s)", exe, IMAGE_XBE);
+    QueueAndroidRelaunch();
     gpu::SavePipelineCache();
-    logx::Flush();
     stage::Clean();
+    logx::Flush();
     platform::RequestQuit();
     g_game_done = true;
+    kernel::ExitThread(0);
 }
 
 extern "C" void scda_on_shutdown(int code) {
@@ -67,19 +83,20 @@ extern "C" void scda_on_shutdown(int code) {
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
-    SDL_SetAppMetadata("SCDA Port", "0.2.4", "com.tgp482.scda_port");
+    SDL_SetAppMetadata("SCDA Port", "0.2.6", "com.tgp482.scda_port");
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
 
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_GAMEPAD | SDL_INIT_AUDIO)) {
         LOGE("shell: SDL_Init failed: %s", SDL_GetError());
         return 1;
     }
 
     // the runtime log: <app files>/logs/scda_NNN.log, and logcat under the "scda" tag
     logx::Init((app::ExeDir() / "logs").string(), "scda", false);
-    LOGI("shell: SCDA Port 0.2.4 host starting, log %s", logx::Path().c_str());
+    LOGI("shell: SCDA Port 0.2.6 host starting, log %s", logx::Path().c_str());
 
     SDL_Window* window = SDL_CreateWindow("SCDA", 0, 0,
-                                          SDL_WINDOW_FULLSCREEN | SDL_WINDOW_RESIZABLE |
+                                          SDL_WINDOW_FULLSCREEN | SDL_WINDOW_VULKAN |
                                               SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (!window) {
         LOGE("shell: no window: %s", SDL_GetError());
@@ -88,6 +105,7 @@ int main(int argc, char* argv[]) {
 
     // the host the runtime expects, before the boot
     platform::SetWindow(window);
+    platform::SetInputWindow(window);
     app::Load();
     platform::SetFrameRate();  // the display's high rate when the frame rate is unlocked or over 60
     input::Init(window);        // gamepads: connected before the game asks for its ports
@@ -129,6 +147,7 @@ int main(int argc, char* argv[]) {
     while (!platform::QuitRequested() && !g_game_done) {
         SDL_Event e;
         while (SDL_PollEvent(&e)) {
+            platform::PumpSdlEvent(&e);
             if (e.type == SDL_EVENT_QUIT || e.type == SDL_EVENT_TERMINATING) platform::RequestQuit();
             else if (e.type == SDL_EVENT_KEY_DOWN && e.key.key == SDLK_AC_BACK && ConfirmQuit())
                 platform::RequestQuit();

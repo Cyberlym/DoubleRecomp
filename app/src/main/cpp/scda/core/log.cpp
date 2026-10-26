@@ -72,7 +72,12 @@ void Write(Level lv, const char* fmt, ...) {
     n = std::min(n, int(sizeof(line)) - 1);
     if (g_file) {
         std::fwrite(line, 1, size_t(n), g_file);
+        // Android native crashes can end the process before a buffered info line reaches the run log.
+#ifdef __ANDROID__
+        std::fflush(g_file);
+#else
         if (lv >= Level::Warn) std::fflush(g_file);
+#endif
     }
     std::fwrite(line, 1, size_t(n), stderr);
 #ifdef __ANDROID__

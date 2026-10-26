@@ -45,6 +45,12 @@ set(RUNTIME_SOURCES
 )
 
 file(GLOB SCDA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/scda/*/*.cpp")
+# The Black renderer is self-contained. Do not link the former split Vulkan backend beside it:
+# both implementations define the backend factory and their device/pipeline helpers are not shared.
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*/gpu/vulkan\\.cpp$")
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*/gpu/vulkan_device\\.cpp$")
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*/gpu/vulkan_pipeline\\.cpp$")
+list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*/gpu/vulkan_shader\\.cpp$")
 # out by agreement: no online, no co-op, no versus, no voice. The minimal no-network and
 # no-headset answers the solo boot needs live in platform/hle_android.cpp
 list(FILTER SCDA_SOURCES EXCLUDE REGEX ".*audio/voice_link\\.cpp$")
@@ -111,12 +117,15 @@ FetchContent_MakeAvailable(spirv-headers spirv-tools glslang shaderc)
 if(TARGET shaderc_shared)
     set_target_properties(shaderc_shared PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
-target_include_directories(scda_port PRIVATE "${SCDA_SHADERC_DEPS}/shaderc-src/libshaderc/include")
-target_link_libraries(scda_port PRIVATE shaderc)
+target_include_directories(scda_port PRIVATE
+    "${SCDA_SHADERC_DEPS}/shaderc-src/libshaderc/include"
+    "${SCDA_SHADERC_DEPS}/glslang-src"
+)
+target_link_libraries(scda_port PRIVATE shaderc glslang glslang-default-resource-limits SPIRV)
 
 target_link_libraries(scda_port PRIVATE SDL3::SDL3 log android vulkan)
 
-target_compile_definitions(scda_port PRIVATE X86_GAME_CODE=1)
+target_compile_definitions(scda_port PRIVATE X86_GAME_CODE=1 ENABLE_HLSL=1)
 
 # the xbe this build was recompiled from: the runtime checks the game it finds is the same release
 set(SCDA_XBE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../default.xbe")

@@ -116,6 +116,10 @@ public class LauncherActivity extends Activity {
             registerReceiver(mInstallFeed, filter);
         if (mFromGame) {
             mFromGame = false;
+            if (consumeRelaunch()) {
+                play();
+                return;
+            }
             reportLastRunOnce();
         }
         refresh();
@@ -188,6 +192,11 @@ public class LauncherActivity extends Activity {
             mSelect.setText("SELECIONAR ISO");
             mRemove.setVisibility(View.GONE);
         }
+    }
+
+    private boolean consumeRelaunch() {
+        File marker = new File(new File(getExternalFilesDir(null), "data"), "relaunch.pending");
+        return marker.isFile() && marker.delete();
     }
 
     private void deleteOrphanStaging() {

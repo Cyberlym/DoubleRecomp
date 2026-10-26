@@ -14,12 +14,13 @@ struct TexInfo {
     uint8_t kind = kTexNone;
     uint8_t rect = 0;    // linear texture, coordinates in texels
     uint8_t shadow = 0;  // depth texture: 1 D24, 2 D16
-    uint8_t flags = 0;   // kTexHdr, kTexNormCube, kTexWide
+    uint8_t flags = 0;   // kTexHdr, kTexNormCube, kTexWide, kTexTarget
 };
 enum : uint8_t {
     kTexHdr = 1,       // a render target holding HDR colour divided by the headroom
     kTexNormCube = 2,  // a normalization cube: computed per pixel instead, with HDR
     kTexWide = 4,      // an upscaled target shrunk by the pass: each tap averaged over console texels
+    kTexTarget = 8,    // a render target, read where the console's pixel offset puts it (DrawConstants::rtshift)
 };
 
 struct PixelKey {
@@ -45,6 +46,21 @@ PixelKey MakePixelKey(const State& s, const TexInfo tex[4]);
 // vertex program microcode to HLSL, regs is the bit mask of v registers the draw supplies
 // decode: VertexDecode per register, 4 bits each, for elements the input assembler hands over raw
 std::string VertexProgramHlsl(const std::vector<uint32_t>& program, uint16_t regs, uint64_t decode = 0);
+
+// checks if a vertex program reads the viewport offset constant (c-37)
+inline bool ReadsViewportOffset(const std::vector<uint32_t>& prog) {
+    struct Tok { const uint32_t* t; uint32_t f(int sub, int bit, int len) const { return (t[sub] >> bit) & ((1u << len) - 1); } };
+    constexpr uint32_t kMuxConstant = 3;
+    constexpr uint32_t kViewportOffsetConstant = 59;
+    for (size_t n = 0; n + 4 <= prog.size(); n += 4) {
+        Tok k{&prog[n]};
+        bool constant = k.f(2, 26, 2) == kMuxConstant || k.f(2, 11, 2) == kMuxConstant || k.f(3, 28, 2) == kMuxConstant;
+        bool relative = k.f(3, 1, 1);
+        if (constant && !relative && k.f(1, 13, 8) == kViewportOffsetConstant) return true;
+    }
+    return false;
+}
+
 // fixed function vertex state a shader is built for
 struct FixedKey {
     uint32_t light = 0;    // bit 0 lighting, 1 specular, 2 local viewer, 3 normalize, then D3DMCS 2 bits each from bit 8:
@@ -71,6 +87,7 @@ struct DrawConstants {
     float wvp[16];      // fixed function
     float hdr[4];       // colour out scale, HDR target read scale, 0, 0
     float spread[4][4]; // kTexWide: tap step in uv, taps per axis
+    float rtshift[4];    // per kTexTarget stage: host pixels its reads move along x and y, negative up and left
     // fixed function, lit in view space
     float wv[16];
     float wvn[16];       // normals: inverse transpose of wv

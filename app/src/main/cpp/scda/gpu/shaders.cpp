@@ -354,6 +354,14 @@ std::string TexFetch(const PixelKey& k, int i) {
     uint32_t dm = i == 0 ? 0 : (k.dot_mapping >> ((i - 1) * 4)) & 0xF;
     const char* dotmap[] = {"dot01", "dotd3d", "dotgl", "dotm11", "dot01", "dot01", "dot01", "dot01"};
     std::string norm = (t.rect ? F(" / texsize[%d].xy", i) : "") + F(" + texsize[%d].zw", i);
+    // render target texture coordinate offset: console samples at integer positions, host at half-pixel centers
+    auto rtshift_uv = [&](const std::string& uv) -> std::string {
+        if (t.flags & kTexTarget) {
+            std::string step = F("ddx(%s) + ddy(%s)", uv.c_str(), uv.c_str());
+            return F("(%s + rtshift[%d] * %s)", uv.c_str(), i, step.c_str());
+        }
+        return uv;
+    };
     auto tex2d = [&](const std::string& uv) {
         if (t.flags & kTexWide) return F("spreadtap(tex%d, smp%d, %s, spread[%d], %s)", i, i, uv.c_str(), i, (t.flags & kTexHdr) ? "hdr.y" : "1");
         return F("tex%d.Sample(smp%d, %s)", i, i, uv.c_str());
@@ -365,15 +373,17 @@ std::string TexFetch(const PixelKey& k, int i) {
         return F("tex%d.Sample(smp%d, %s)", i, i, dir.c_str());
     };
     auto sample2 = [&](const std::string& uv) {
-        if (t.kind == kTex2D) return tex2d(F("(%s)%s", uv.c_str(), norm.c_str()));
-        if (t.kind == kTexCube) return cube("float3(" + uv + ", 1)");
-        if (t.kind == kTex3D) return F("tex%d.Sample(smp%d, float3(%s, 0))", i, i, uv.c_str());
+        std::string uv_rtshift = rtshift_uv(uv);
+        if (t.kind == kTex2D) return tex2d(F("(%s)%s", uv_rtshift.c_str(), norm.c_str()));
+        if (t.kind == kTexCube) return cube("float3(" + uv_rtshift + ", 1)");
+        if (t.kind == kTex3D) return F("tex%d.Sample(smp%d, float3(%s, 0))", i, i, uv_rtshift.c_str());
         return std::string("float4(0,0,0,1)");
     };
     auto sample3 = [&](const std::string& uvw) {
-        if (t.kind == kTex2D) return tex2d(F("(%s).xy%s", uvw.c_str(), norm.c_str()));
-        if (t.kind == kTexCube) return cube(uvw);
-        if (t.kind == kTex3D) return F("tex%d.Sample(smp%d, %s)", i, i, uvw.c_str());
+        std::string uvw_rtshift = rtshift_uv(uvw);
+        if (t.kind == kTex2D) return tex2d(F("(%s).xy%s", uvw_rtshift.c_str(), norm.c_str()));
+        if (t.kind == kTexCube) return cube(uvw_rtshift);
+        if (t.kind == kTex3D) return F("tex%d.Sample(smp%d, %s)", i, i, uvw_rtshift.c_str());
         return std::string("float4(0,0,0,1)");
     };
     std::string s;
@@ -771,7 +781,8 @@ std::string PixelHlsl(const PixelKey& k) {
     for (int i = 0; i < 4; i++) {
         const TexInfo& t = k.tex[i];
         const char* type = t.shadow ? "Texture2D<float>" : t.kind == kTex3D ? "Texture3D" : t.kind == kTexCube ? "TextureCube" : "Texture2D";
-        s += F("%s tex%d : register(t%d);\n%s smp%d : register(s%d);\n", type, i, i, t.shadow ? "SamplerComparisonState" : "SamplerState", i, i);
+        s += F("%s tex%d : register(t%d);\n%s smp%d : register(s%d);\n", type, i, i,
+               t.shadow ? "SamplerComparisonState" : "SamplerState", i, i);
     }
     s += F("float4 main(VOut i, bool front : SV_IsFrontFace) : SV_Target {\n");
     s += "    float4 pT0 = i.t0, pT1 = i.t1, pT2 = i.t2, pT3 = i.t3;\n";
@@ -825,7 +836,15 @@ std::string PixelHlsl(const PixelKey& k) {
             if (f[0] <= 1) break;
             const TexInfo& t = k.tex[i];
             std::string norm = (t.rect ? F(" / texsize[%d].xy", i) : "") + F(" + texsize[%d].zw", i);
+            auto rtshift_uv = [&](const std::string& uv) -> std::string {
+                if (t.flags & kTexTarget) {
+                    std::string step = F("ddx(%s) + ddy(%s)", uv.c_str(), uv.c_str());
+                    return F("(%s + rtshift[%d] * %s)", uv.c_str(), i, step.c_str());
+                }
+                return uv;
+            };
             std::string uv = (k.proj >> i) & 1 ? F("(pT%d.xy / pT%d.w)%s", i, i, norm.c_str()) : F("pT%d.xy%s", i, norm.c_str());
+            uv = rtshift_uv(uv);
             if (t.shadow)
                 body += F("float4 t%d = shadow(tex%d, smp%d, (pT%d.xy / pT%d.w)%s, pT%d.z / pT%d.w, %d);\n", i, i,
                           i, i, i, norm.c_str(), i, i, t.shadow);

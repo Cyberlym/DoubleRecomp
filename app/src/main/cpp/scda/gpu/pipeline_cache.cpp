@@ -1,5 +1,5 @@
-// Shaders and pipeline descriptions kept on disk between runs, and the threads that build new ones away from the
-// render thread. The Vulkan build of the Windows pipeline library: SPIR-V by source hash in an append only file,
+// Shaders and pipeline descriptions kept on disk between runs. The Vulkan build of the Windows pipeline library:
+// SPIR-V by source hash in an append only file,
 // pipeline keys by name hash in a second one, and the driver's own VkPipelineCache serialized beside them.
 #include "gpu/pipeline_cache.h"
 
@@ -11,6 +11,7 @@
 #include <cstring>
 #include <deque>
 #include <filesystem>
+#include <future>
 #include <mutex>
 #include <thread>
 #include <unordered_map>
@@ -31,9 +32,7 @@ namespace {
 // shaders.bin: FileHeader, then a Record and its SPIR-V for each shader as it is compiled; a torn tail from a killed
 // process is cut off at the next start
 constexpr uint32_t kShaderMagic = 0x48534353;  // 'SCSH'
-constexpr uint32_t kShaderVersion = 5;         // bump when the compile flags change (Vulkan SPIR-V now;
-                                               // 5: the entry point argument swap — every module before
-                                               // this was a 728-byte stub the reflection rejected)
+constexpr uint32_t kShaderVersion = 6;         // 6: blit uses direct glslang and fixed bindings; invalidate shaderc blobs
 constexpr uint64_t kMaxShaderFile = 256ull << 20;
 constexpr int64_t kSaveIdleMs = 10000;
 // <exe>_pipeline_keys.bin: FileHeader, then a KeyRecord and its bytes for each pipeline the first time it is drawn
@@ -93,7 +92,7 @@ struct Pool {
     bool started = false;
 };
 
-// never freed: build threads may still run when the process exits
+// never freed: cache workers may still run when the process exits
 Shaders& S() {
     static Shaders* s = new Shaders;
     return *s;
@@ -348,10 +347,22 @@ void Post(std::function<void()> job, bool ahead) {
             unsigned cores = std::thread::hardware_concurrency();
             int n = std::clamp(int(cores) - 3, 1, 4);
             for (int i = 0; i < n; i++) std::thread(Run).detach();
-            LOGI("shader build threads: %d", n);
+            LOGI("cache worker threads: %d", n);
         }
     }
     p.wake.notify_one();
+}
+
+void Drain() {
+    Pool& p = P();
+    {
+        std::lock_guard lock(p.lock);
+        if (!p.started && p.jobs.empty()) return;
+    }
+    std::promise<void> done;
+    std::future<void> finished = done.get_future();
+    Post([&done] { done.set_value(); });
+    finished.wait();
 }
 
 }  // namespace gpu::cache

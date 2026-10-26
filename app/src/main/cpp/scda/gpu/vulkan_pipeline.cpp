@@ -1,6 +1,6 @@
 // The game's render state as a Vulkan graphics pipeline: blending, depth and stencil, rasterization, culling and the
-// vertex input, keyed and cached the way the Windows build keyed its PSOs, built on threads away from the render
-// thread and warmed from the keys file at a run's start.
+// vertex input, keyed and cached the way the Windows build keyed its PSOs. Vulkan objects are built on the render
+// thread, while the description cache remains on disk between runs.
 #include "vulkan_internal.h"
 #include "../platform/dxgishim.h"
 
@@ -10,13 +10,11 @@
 
 namespace gpu::vk {
 
-namespace {
-
-// Adreno's driver returns VK_ERROR_UNKNOWN when two threads create pipelines through the same
-// VkPipelineCache at once (the async build thread's game pipelines and the render thread's blit
-// pipelines share g_ctx.pipe_cache): every creation in this file goes through this one lock,
-// so the cache is only ever used single-threaded
+// Keep every graphics-pipeline creation serialized even though the normal path is now the render
+// thread; this also protects the shared driver cache if a diagnostic or warm-up path is reintroduced.
 std::mutex g_pipe_create_lock;
+
+namespace {
 
 VkBlendFactor Blend(uint32_t v, bool alpha) {
     switch (v) {
@@ -130,14 +128,19 @@ VkPipelineLayout MakeLayout(const Reflect& vs, const Reflect& ps, std::array<VkD
     if (out_bindings) out_bindings->clear();
     VkPipelineLayoutCreateInfo lc{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     std::vector<VkDescriptorSetLayout> layouts;
+    uint32_t set_count = 0;
     for (uint32_t set = 0; set < 4; set++) {
+        if (sets.find(set) != sets.end()) set_count = set + 1;
+    }
+    for (uint32_t set = 0; set < set_count; set++) {
         auto s = sets.find(set);
-        if (s == sets.end() || s->second.empty()) continue;
         std::vector<VkDescriptorSetLayoutBinding> bindings;
-        for (auto& [binding, b] : s->second) {
-            bindings.push_back({binding, b.type, b.count, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                                nullptr});
-            if (out_bindings) out_bindings->push_back({set, binding, b.count, b.type, b.name});
+        if (s != sets.end()) {
+            for (auto& [binding, b] : s->second) {
+                bindings.push_back({binding, b.type, b.count, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                                    nullptr});
+                if (out_bindings) out_bindings->push_back({set, binding, b.count, b.type, b.name});
+            }
         }
         VkDescriptorSetLayoutCreateInfo lc2{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
         lc2.bindingCount = uint32_t(bindings.size());
@@ -156,6 +159,9 @@ VkPipelineLayout MakeLayout(const Reflect& vs, const Reflect& ps, std::array<VkD
 
 // the pipeline from a key and the two modules, on the calling thread
 VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkRenderPass pass) {
+    LOGI("vulkan: game pipeline create begin vs=%016llx ps=%016llx layout=%p pass=%p", (unsigned long long)k.vs,
+         (unsigned long long)k.ps, reinterpret_cast<void*>(layout), reinterpret_cast<void*>(pass));
+    logx::Flush();
     VkPipelineShaderStageCreateInfo stages[2] = {};
     stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -183,8 +189,8 @@ VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkR
         uint32_t e = k.elements[r];
         VkFormat fmt = VertexFormat(e & 0xFF);
         if (fmt == VK_FORMAT_UNDEFINED) continue;
-        // the shader's ATTR semantics get locations by declaration order, the registers' own order here
-        attrs[nattr] = {nattr, e >> 8 & 0xFF, fmt, e >> 16};
+        // ATTRn is a shader location, not the ordinal of the compacted attribute list.
+        attrs[nattr] = {r, e >> 8 & 0xFF, fmt, e >> 16};
         nattr++;
     }
     VkPipelineVertexInputStateCreateInfo vi{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
@@ -258,27 +264,37 @@ VkPipeline Build(const PsoKey& k, VkPipelineLayout layout, StageModules& st, VkR
     pc.pDepthStencilState = k.has_ds ? &ds : nullptr;
     pc.pColorBlendState = &cbs;
     pc.pDynamicState = nullptr;
-    VkDynamicState dyn[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR, VK_DYNAMIC_STATE_BLEND_CONSTANTS,
-                            VK_DYNAMIC_STATE_STENCIL_REFERENCE, VK_DYNAMIC_STATE_DEPTH_BIAS};
+    std::array<VkDynamicState, 5> dyn{};
+    uint32_t dyn_count = 0;
+    dyn[dyn_count++] = VK_DYNAMIC_STATE_VIEWPORT;
+    dyn[dyn_count++] = VK_DYNAMIC_STATE_SCISSOR;
+    if (k.blend) dyn[dyn_count++] = VK_DYNAMIC_STATE_BLEND_CONSTANTS;
+    if (k.has_ds && k.sten) dyn[dyn_count++] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+    if (k.has_ds && (k.zbias || k.zslope != 0)) dyn[dyn_count++] = VK_DYNAMIC_STATE_DEPTH_BIAS;
     VkPipelineDynamicStateCreateInfo dyns{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
-    dyns.dynamicStateCount = 5;
-    dyns.pDynamicStates = dyn;
+    dyns.dynamicStateCount = dyn_count;
+    dyns.pDynamicStates = dyn.data();
     pc.pDynamicState = &dyns;
     pc.layout = layout;
     pc.renderPass = pass;
     pc.subpass = 0;
     VkPipeline pipe = VK_NULL_HANDLE;
+    VkResult r = VK_ERROR_INITIALIZATION_FAILED;
     {
-        std::lock_guard create_lock(g_pipe_create_lock);
-        VkResult r = vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe);
-        if (r != VK_SUCCESS) {
-            LOGE("vulkan: vkCreateGraphicsPipelines failed: %d, key zen=%u zfunc=0x%x sten=%u sfunc=0x%x blend=%u "
-                 "src=0x%x dst=0x%x op=0x%x topo=0x%x cull=%u fill=%u has_ds=%u rtfmt=%u",
-                 int(r), k.zen, k.zfunc, k.sten, k.sfunc, k.blend, k.src, k.dst, k.op, k.topo, k.cull, k.fill, k.has_ds,
-                 k.rtfmt);
-            return VK_NULL_HANDLE;
-        }
+        std::lock_guard<std::mutex> create_lock(g_pipe_create_lock);
+        // Adreno has returned successful but unusable game pipelines from the persisted cache.
+        // Build these pipelines cleanly; blit pipelines already use this path.
+        r = vkCreateGraphicsPipelines(g_ctx.dev, VK_NULL_HANDLE, 1, &pc, nullptr, &pipe);
     }
+    if (r != VK_SUCCESS) {
+        LOGE("vulkan: vkCreateGraphicsPipelines failed: %s (%d), key zen=%u zfunc=0x%x sten=%u sfunc=0x%x blend=%u "
+             "src=0x%x dst=0x%x op=0x%x topo=0x%x cull=%u fill=%u has_ds=%u rtfmt=%u",
+             VkResultName(r), int(r), k.zen, k.zfunc, k.sten, k.sfunc, k.blend, k.src, k.dst, k.op, k.topo, k.cull,
+             k.fill, k.has_ds, k.rtfmt);
+        return VK_NULL_HANDLE;
+    }
+    LOGI("vulkan: game pipeline create complete pipe=%p", reinterpret_cast<void*>(pipe));
+    logx::Flush();
     return pipe;
 }
 
@@ -297,15 +313,19 @@ constexpr uint64_t kPipelineSalt = 0x50534F4B45590000ull;  // 'PSOKEY'
 
 uint64_t KeyHash(const PsoKey& k) { return Hash(&k, sizeof(k), kPipelineSalt); }
 
-// builds one pipeline on a build thread or the render thread; the render pass must exist by then
+// builds one pipeline on the render thread; the render pass must exist by then
 void BuildPipeline(KeyedPipeline& kp) {
     PsoKey k = kp.key;
+    LOGI("vulkan: BuildPipeline begin key=%016llx vs=%016llx ps=%016llx", (unsigned long long)KeyHash(k),
+         (unsigned long long)k.vs, (unsigned long long)k.ps);
+    logx::Flush();
     StageModules st;
     bool pending = false;
     Shader vs, ps;
     // the shaders' sources were registered by the draw that first used the key
     if (!EnsureShaderByHash(k.vs, vs, false, pending) || !EnsureShaderByHash(k.ps, ps, false, pending)) {
-        // the build thread has not got them yet; the next draw retries
+        LOGI("vulkan: BuildPipeline waiting for shaders key=%016llx pending=%u", (unsigned long long)KeyHash(k), pending);
+        // A source may be unavailable or compilation may have failed; the next draw retries.
         std::lock_guard lock(kp.lock);
         kp.building = false;
         return;
@@ -316,18 +336,35 @@ void BuildPipeline(KeyedPipeline& kp) {
     st.ps_reflect = &ps.reflect;
     Pipeline p;
     p.layout = MakeLayout(vs.reflect, ps.reflect, p.sets, &p.bindings);
-    if (!p.layout) return;
+    LOGI("vulkan: game pipeline layout %s key=%016llx bindings=%zu", p.layout ? "ready" : "failed",
+         (unsigned long long)KeyHash(k), p.bindings.size());
+    if (!p.layout) {
+        std::lock_guard l(kp.lock);
+        kp.building = false;
+        return;
+    }
     VkFormat color = k.has_rt ? VkFormat(k.rtfmt) : kBgra;
     VkRenderPass pass = GetRenderPass(color, k.has_ds ? g_ctx.depth_fmt : VK_FORMAT_UNDEFINED, VK_SAMPLE_COUNT_1_BIT,
                                       false, false);
-    if (!pass) return;
+    LOGI("vulkan: game pipeline render pass %s key=%016llx", pass ? "ready" : "failed", (unsigned long long)KeyHash(k));
+    if (!pass) {
+        std::lock_guard l(kp.lock);
+        kp.building = false;
+        return;
+    }
     p.pipe = Build(k, p.layout, st, pass);
-    if (!p.pipe) return;
+    if (!p.pipe) {
+        std::lock_guard l(kp.lock);
+        kp.building = false;
+        return;
+    }
     std::lock_guard lock(kp.lock);
     if (kp.pipeline.pipe) vkDestroyPipeline(g_ctx.dev, kp.pipeline.pipe, nullptr);
     if (kp.pipeline.layout) vkDestroyPipelineLayout(g_ctx.dev, kp.pipeline.layout, nullptr);
     kp.pipeline = p;
     kp.ready = true;
+    LOGI("vulkan: BuildPipeline complete key=%016llx", (unsigned long long)KeyHash(k));
+    logx::Flush();
 }
 
 }  // namespace
@@ -352,7 +389,14 @@ VkPipeline BuildBlitPipeline(VkFormat color, bool over) {
         auto it = pipes.find(key);
         if (it != pipes.end()) return it->second;
     }
-    if (!EnsureBlitShaders()) return VK_NULL_HANDLE;
+    LOGI("vulkan: blit pipeline begin format=%u over=%u", uint32_t(color), over ? 1 : 0);
+    logx::Flush();
+    if (!EnsureBlitShaders()) {
+        LOGE("vulkan: blit shader setup failed format=%u over=%u", uint32_t(color), over ? 1 : 0);
+        return VK_NULL_HANDLE;
+    }
+    LOGI("vulkan: blit shader setup complete vs=%p fs=%p layout=%p", reinterpret_cast<void*>(g_blit.vs.module),
+         reinterpret_cast<void*>(g_blit.fs.module), reinterpret_cast<void*>(g_blit.layout));
     VkPipelineShaderStageCreateInfo stages[2] = {};
     stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -380,6 +424,7 @@ VkPipeline BuildBlitPipeline(VkFormat color, bool over) {
     ds.stencilTestEnable = VK_FALSE;
     VkPipelineColorBlendAttachmentState cb{};
     cb.blendEnable = over;
+    (void)ds;
     cb.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
     cb.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     cb.colorBlendOp = VK_BLEND_OP_ADD;
@@ -396,7 +441,10 @@ VkPipeline BuildBlitPipeline(VkFormat color, bool over) {
     dyns.dynamicStateCount = 2;
     dyns.pDynamicStates = dyn;
     VkRenderPass pass = GetRenderPass(color, VK_FORMAT_UNDEFINED, VK_SAMPLE_COUNT_1_BIT, false, false);
-    if (!pass) return VK_NULL_HANDLE;
+    if (!pass) {
+        LOGE("vulkan: blit render pass unavailable format=%u", uint32_t(color));
+        return VK_NULL_HANDLE;
+    }
     VkGraphicsPipelineCreateInfo pc{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
     pc.stageCount = 2;
     pc.pStages = stages;
@@ -405,7 +453,7 @@ VkPipeline BuildBlitPipeline(VkFormat color, bool over) {
     pc.pViewportState = &vp;
     pc.pRasterizationState = &rs;
     pc.pMultisampleState = &ms;
-    pc.pDepthStencilState = &ds;
+    pc.pDepthStencilState = nullptr;
     pc.pColorBlendState = &cbs;
     pc.pDynamicState = &dyns;
     pc.layout = g_blit.layout;
@@ -413,19 +461,55 @@ VkPipeline BuildBlitPipeline(VkFormat color, bool over) {
     VkPipeline pipe = VK_NULL_HANDLE;
     VkResult created = VK_ERROR_INITIALIZATION_FAILED;
     {
-        std::lock_guard create_lock(g_pipe_create_lock);
-        created = vkCreateGraphicsPipelines(g_ctx.dev, g_ctx.pipe_cache, 1, &pc, nullptr, &pipe);
+        std::lock_guard<std::mutex> create_lock(g_pipe_create_lock);
+        // Cria SEM pipeline cache (evita VK_ERROR_UNKNOWN no Adreno)
+        created = vkCreateGraphicsPipelines(g_ctx.dev, VK_NULL_HANDLE, 1, &pc, nullptr, &pipe);
     }
+    LOGI("vulkan: blit pipeline create returned %s (%d) format=%u over=%u", VkResultName(created), int(created),
+         uint32_t(color), over ? 1 : 0);
     if (created != VK_SUCCESS) {
-        // the variant in the log: if the lock was not enough, the format and blend say which case died
-        LOGE("vulkan: the blit pipeline for color format %u over %u failed: %d", uint32_t(color), over ? 1 : 0,
-             int(created));
+        // Diagnóstico obrigatório: VkResult por nome, VkFormat, SPIR-V size/versão
+        const char* vkres_name = "UNKNOWN";
+        switch (created) {
+            case VK_ERROR_OUT_OF_HOST_MEMORY: vkres_name = "OUT_OF_HOST_MEMORY"; break;
+            case VK_ERROR_OUT_OF_DEVICE_MEMORY: vkres_name = "OUT_OF_DEVICE_MEMORY"; break;
+            case VK_ERROR_INITIALIZATION_FAILED: vkres_name = "INITIALIZATION_FAILED"; break;
+            case VK_ERROR_DEVICE_LOST: vkres_name = "DEVICE_LOST"; break;
+            case VK_ERROR_MEMORY_MAP_FAILED: vkres_name = "MEMORY_MAP_FAILED"; break;
+            case VK_ERROR_LAYER_NOT_PRESENT: vkres_name = "LAYER_NOT_PRESENT"; break;
+            case VK_ERROR_EXTENSION_NOT_PRESENT: vkres_name = "EXTENSION_NOT_PRESENT"; break;
+            case VK_ERROR_FEATURE_NOT_PRESENT: vkres_name = "FEATURE_NOT_PRESENT"; break;
+            case VK_ERROR_INCOMPATIBLE_DRIVER: vkres_name = "INCOMPATIBLE_DRIVER"; break;
+            case VK_ERROR_TOO_MANY_OBJECTS: vkres_name = "TOO_MANY_OBJECTS"; break;
+            case VK_ERROR_FORMAT_NOT_SUPPORTED: vkres_name = "FORMAT_NOT_SUPPORTED"; break;
+            case VK_ERROR_FRAGMENTED_POOL: vkres_name = "FRAGMENTED_POOL"; break;
+            case VK_ERROR_UNKNOWN: vkres_name = "UNKNOWN"; break;
+            case VK_ERROR_OUT_OF_POOL_MEMORY: vkres_name = "OUT_OF_POOL_MEMORY"; break;
+            case VK_ERROR_INVALID_EXTERNAL_HANDLE: vkres_name = "INVALID_EXTERNAL_HANDLE"; break;
+            case VK_ERROR_FRAGMENTATION: vkres_name = "FRAGMENTATION"; break;
+            case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: vkres_name = "INVALID_OPAQUE_CAPTURE_ADDRESS"; break;
+        }
+        // SPIR-V size/versão (word 1 = version, word 3 = bound)
+        auto log_spirv_info = [](const char* name, const Shader& sh) {
+            if (sh.module && sh.spirv.size() >= 4) {
+                const uint32_t* w = reinterpret_cast<const uint32_t*>(sh.spirv.data());
+                LOGE("vulkan: SPIR-V %s: size=%zu words, version=0x%04X, bound=%u",
+                     name, sh.spirv.size() / 4, w[1] >> 16, w[3]);
+            }
+        };
+        log_spirv_info("vs", g_blit.vs);
+        log_spirv_info("fs", g_blit.fs);
+        LOGE("vulkan: blit pipeline failed: result=%s (%d), format=%u, over=%u",
+             vkres_name, int(created), uint32_t(color), over ? 1 : 0);
         return VK_NULL_HANDLE;
     }
     {
         std::lock_guard l(lock);
         pipes.emplace(key, pipe);
     }
+    LOGI("vulkan: blit pipeline complete format=%u over=%u pipe=%p", uint32_t(color), over ? 1 : 0,
+         reinterpret_cast<void*>(pipe));
+    logx::Flush();
     return pipe;
 }
 
@@ -443,9 +527,12 @@ bool EnsurePipeline(const PsoKey& k, bool wait, Pipeline** out, bool& pending) {
             kp = it->second;
         }
     }
-    if (kp->ready) {
-        *out = &kp->pipeline;
-        return true;
+    {
+        std::lock_guard lock(kp->lock);
+        if (kp->ready) {
+            *out = &kp->pipeline;
+            return true;
+        }
     }
     bool want = false;
     {
@@ -459,17 +546,15 @@ bool EnsurePipeline(const PsoKey& k, bool wait, Pipeline** out, bool& pending) {
         pending = true;
         return false;
     }
-    if (wait) {
-        // a quad over the screen waits: its pass shows what lies under it otherwise
-        BuildPipeline(*kp);
+    (void)wait;
+    BuildPipeline(*kp);
+    {
+        std::lock_guard lock(kp->lock);
         if (kp->ready) {
             *out = &kp->pipeline;
             return true;
         }
-        pending = true;
-        return false;
     }
-    ::gpu::cache::Post([&kp] { BuildPipeline(*kp); });
     pending = true;
     return false;
 }

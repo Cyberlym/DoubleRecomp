@@ -122,6 +122,10 @@ uint64_t VertexKey(const State& s, const Assembled& a, const DrawShaders& sh) {
     uint64_t vkey = Hash(&a.decode, 8, seed);
     if (!sh.prog && a.pretransformed) vkey ^= kPretransformedSalt;
     if (sh.quad) vkey ^= kQuadSalt;
+    if (a.topology == Topology::Points) {
+        uint32_t topology = uint32_t(a.topology);
+        vkey = Hash(&topology, sizeof(topology), vkey);
+    }
     if (!sh.prog) vkey = Hash(&sh.fk, sizeof(sh.fk), vkey);
     return vkey;
 }
@@ -129,6 +133,20 @@ uint64_t VertexKey(const State& s, const Assembled& a, const DrawShaders& sh) {
 std::string VertexHlsl(const State& s, const Assembled& a, const DrawShaders& sh) {
     if (sh.prog) return VertexProgramHlsl(s.vs->program, a.regs, a.decode);
     return FixedVertexHlsl(a.regs, a.pretransformed, a.decode, sh.fk);
+}
+
+// Vulkan needs a point size written by the vertex shader. The generated shader's
+// body has no point-size output because the Xbox vertex program did not expose one.
+std::string PointsHlsl(std::string src) {
+    size_t at = src.find("VOut main(");
+    if (at == std::string::npos) return {};
+    size_t type_start = at + 10;
+    size_t type_end = src.find(' ', type_start);
+    if (type_end == std::string::npos) return {};
+    std::string type = src.substr(type_start, type_end - type_start);
+    src.replace(at, 10, "VOut vs_body(");
+    src += "\nVOut main(" + type + " i, out float psize : PSIZE) { psize = 1; return vs_body(i); }\n";
+    return src;
 }
 
 // the draw's constants, as the shaders' cbuffer b1 holds them
@@ -375,7 +393,7 @@ void DecodeBc1Block(const uint8_t* src, uint8_t* out, uint32_t pitch, bool alpha
     std::array<std::array<uint8_t, 4>, 4> pal{};
     for (int i = 0; i < 4; i++) {
         pal[i][3] = 255;
-        if (i < 2 || c0 > c1) {
+        if (i < 2 || c0 > c1 || !alpha) {
             pal[i][0] = i < 2 ? c0v[0] : (2 * c0v[0] + c1v[0] + 1) / 3;
             pal[i][1] = i < 2 ? c0v[1] : (2 * c0v[1] + c1v[1] + 1) / 3;
             pal[i][2] = i < 2 ? c0v[2] : (2 * c0v[2] + c1v[2] + 1) / 3;
@@ -386,7 +404,6 @@ void DecodeBc1Block(const uint8_t* src, uint8_t* out, uint32_t pitch, bool alpha
             if (i == 3) pal[i][3] = 0;  // BC1's one bit alpha
         }
     }
-    (void)alpha;
     for (int y = 0; y < 4; y++)
         for (int x = 0; x < 4; x++) {
             uint8_t sel = (idx >> (2 * (y * 4 + x))) & 3;
@@ -398,27 +415,30 @@ void DecodeBcn(const TextureDesc& d, uint32_t level, const std::vector<uint8_t>&
                int kind, std::vector<uint8_t>& rgba, uint32_t& row_pitch) {
     uint32_t w = std::max<uint32_t>(d.width >> level, 1), h = std::max<uint32_t>(d.height >> level, 1);
     row_pitch = w * 4;
-    rgba.assign(size_t(row_pitch) * h, 0);
+    uint32_t z = std::max<uint32_t>(d.depth >> level, 1);
+    rgba.assign(size_t(row_pitch) * h * z, 0);
     uint32_t bw = std::max(1u, (w + 3) / 4), bh = std::max(1u, (h + 3) / 4);
-    for (uint32_t by = 0; by < bh; by++)
-        for (uint32_t bx = 0; bx < bw; bx++) {
-            const uint8_t* src = blocks.data() + (size_t(by) * block_pitch + bx) * (kind == 1 ? 8 : 16);
-            uint8_t* out = rgba.data() + (size_t(by) * 4) * row_pitch + bx * 4 * 4;
+    uint32_t block_bytes = kind == 1 ? 8 : 16;
+    for (uint32_t bz = 0; bz < z; bz++)
+        for (uint32_t by = 0; by < bh; by++)
+            for (uint32_t bx = 0; bx < bw; bx++) {
+            const uint8_t* src = blocks.data() + size_t(bz) * bh * block_pitch + size_t(by) * block_pitch + bx * block_bytes;
+            uint8_t block[64]{};
             if (kind == 1) {
-                DecodeBc1Block(src, out, row_pitch, true);
+                DecodeBc1Block(src, block, 16, true);
             } else if (kind == 2) {
                 // BC2: 4 bit alpha rows, then BC1 colour
                 for (int y = 0; y < 4; y++)
                     for (int x = 0; x < 4; x++) {
                         uint8_t a4 = (src[y * 2 + x / 2] >> (x % 2 * 4)) & 0xF;
-                        out[y * row_pitch + x * 4 + 3] = uint8_t(a4 * 255 / 15);
+                        block[y * 16 + x * 4 + 3] = uint8_t(a4 * 255 / 15);
                     }
-                uint8_t colour[16];
+                uint8_t colour[64];
                 DecodeBc1Block(src + 8, colour, 16, false);
                 for (int y = 0; y < 4; y++)
-                    for (int x = 0; x < 4; x++) out[y * row_pitch + x * 4] = colour[y * 16 + x * 4],
-                        out[y * row_pitch + x * 4 + 1] = colour[y * 16 + x * 4 + 1],
-                        out[y * row_pitch + x * 4 + 2] = colour[y * 16 + x * 4 + 2];
+                    for (int x = 0; x < 4; x++) block[y * 16 + x * 4] = colour[y * 16 + x * 4],
+                        block[y * 16 + x * 4 + 1] = colour[y * 16 + x * 4 + 1],
+                            block[y * 16 + x * 4 + 2] = colour[y * 16 + x * 4 + 2];
             } else {
                 // BC3: interpolated alpha, then BC1 colour
                 uint8_t a0 = src[0], a1 = src[1];
@@ -432,15 +452,20 @@ void DecodeBcn(const TextureDesc& d, uint32_t level, const std::vector<uint8_t>&
                         else if (a0 > a1) a = uint8_t(((8 - sel) * a0 + (sel - 1) * a1) / 7);
                         else if (sel < 6) a = uint8_t(((6 - sel) * a0 + (sel - 1) * a1) / 5);
                         else a = sel == 6 ? 0 : 255;
-                        out[y * row_pitch + x * 4 + 3] = a;
+                        block[y * 16 + x * 4 + 3] = a;
                     }
-                uint8_t colour[16];
+                uint8_t colour[64];
                 DecodeBc1Block(src + 8, colour, 16, false);
                 for (int y = 0; y < 4; y++)
-                    for (int x = 0; x < 4; x++) out[y * row_pitch + x * 4] = colour[y * 16 + x * 4],
-                        out[y * row_pitch + x * 4 + 1] = colour[y * 16 + x * 4 + 1],
-                        out[y * row_pitch + x * 4 + 2] = colour[y * 16 + x * 4 + 2];
+                    for (int x = 0; x < 4; x++) block[y * 16 + x * 4] = colour[y * 16 + x * 4],
+                        block[y * 16 + x * 4 + 1] = colour[y * 16 + x * 4 + 1],
+                            block[y * 16 + x * 4 + 2] = colour[y * 16 + x * 4 + 2];
             }
+            // The final block may extend past a non-4-aligned texture edge.
+            uint32_t copy_w = std::min(4u, w - bx * 4), copy_h = std::min(4u, h - by * 4);
+            for (uint32_t y = 0; y < copy_h; y++)
+                std::memcpy(rgba.data() + (size_t(bz) * h + by * 4 + y) * row_pitch + bx * 16, block + y * 16,
+                            copy_w * 4);
         }
 }
 
@@ -463,22 +488,28 @@ public:
     VulkanBackend() = default;
     ~VulkanBackend() override { Shutdown(); }
 
-bool Init(uint32_t width, uint32_t height) {
+    bool Init(uint32_t width, uint32_t height) {
         guest_w_ = width;
         guest_h_ = height;
-        scale_ = app::RenderScale(height);
-        shadow_res_ = app::Get().shadow_resolution;
+        {
+            std::lock_guard lock(app::UiLock());
+            scale_ = app::RenderScale(height);
+            shadow_res_ = app::Get().shadow_resolution;
+        }
         if (!CreateInstanceAndDevice()) {
             LOGE("vulkan: no device");
+            Shutdown();
             return false;
         }
         if (!CreateSwapchain()) {
             LOGE("vulkan: no swapchain");
+            Shutdown();
             return false;
         }
         cache::Open(0x564B4C4B45595331ull);  // 'VKKEYS1', a hash of the reflection built layouts
         if (!EnsureBlitShaders()) {
             LOGE("vulkan: the blit shaders failed to build");
+            Shutdown();
             return false;
         }
         // the full screen passes' two clamp samplers: linear at ls, point at ps
@@ -487,19 +518,37 @@ bool Init(uint32_t width, uint32_t height) {
         sc.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         sc.addressModeU = sc.addressModeV = sc.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         sc.maxLod = VK_LOD_CLAMP_NONE;
-        if (!VKCHECK(vkCreateSampler(g_ctx.dev, &sc, nullptr, &linear_sampler_))) return false;
+        if (!VKCHECK(vkCreateSampler(g_ctx.dev, &sc, nullptr, &linear_sampler_))) {
+            Shutdown();
+            return false;
+        }
         sc.magFilter = sc.minFilter = VK_FILTER_NEAREST;
-        if (!VKCHECK(vkCreateSampler(g_ctx.dev, &sc, nullptr, &point_sampler_))) return false;
-        if (!EnsureFallbackTexture()) return false;
-        if (!EnsureGammaLut()) return false;
-        WarmPipelines();
+        if (!VKCHECK(vkCreateSampler(g_ctx.dev, &sc, nullptr, &point_sampler_))) {
+            Shutdown();
+            return false;
+        }
+        if (!EnsureFallbackTexture() || !EnsureGammaLut()) {
+            Shutdown();
+            return false;
+        }
         LOGI("vulkan: %ux%u guest, %ux%u window, render scale %.3f", width, height, g_ctx.bb_w, g_ctx.bb_h, scale_);
         return true;
     }
 
     void Shutdown() {
-        if (!g_ctx.dev) return;
+        if (!g_ctx.dev) {
+            DestroyDevice();
+            return;
+        }
+        if (recording_) {
+            EndPass();
+            if (!VKCHECK(vkEndCommandBuffer(g_ctx.Current().cmd)))
+                LOGE("vulkan: could not close the command buffer during shutdown");
+            recording_ = false;
+        }
         vkDeviceWaitIdle(g_ctx.dev);
+        ClearFramebuffers();
+        for (auto& f : g_ctx.frames) ReleaseFrameGarbage(f);
         for (auto& [key, t] : targets_) {
             DestroyImage(t.img);
             if (t.resolve) DestroyImage(*t.resolve);
@@ -547,12 +596,29 @@ bool Init(uint32_t width, uint32_t height) {
         pass_ds_ = nullptr;
     }
 
+    void SubmitDroppedFrame() {
+        EndPass();
+        if (!recording_) return;
+        if (!SubmitFrame(false)) LOGE("vulkan: failed to submit a frame that could not be presented");
+        recording_ = false;
+    }
+
     // a render pass over one colour attachment and an optional depth stencil; LOAD keeps the contents between passes
     bool BeginPass(Image& color, Target* ds, bool clear_color) {
         if (pass_color_ == &color && pass_ds_ == ds) return true;
         EndPass();
         Transition(color, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         if (ds) Transition(ds->img, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        // Separate render passes still share the same attachments. Match Black's explicit
+        // write-to-read dependency instead of relying on the driver's implicit ordering.
+        VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+        mb.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        mb.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                           VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        VkPipelineStageFlags stages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                      VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+                                      VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        vkCmdPipelineBarrier(g_ctx.Current().cmd, stages, stages, 0, 1, &mb, 0, nullptr, 0, nullptr);
         VkRenderPass pass = GetRenderPass(color.fmt, ds ? g_ctx.depth_fmt : VK_FORMAT_UNDEFINED,
                                           VK_SAMPLE_COUNT_1_BIT, clear_color, false);
         if (!pass) return false;
@@ -669,7 +735,12 @@ private:
                                       VK_SAMPLE_COUNT_1_BIT))
             return nullptr;
         t.data = data;
-        t.bytes = depth ? gw * gh * 4 : GuestPitch(gw) * gh;
+        if (depth) {
+            TextureDesc depth_desc;
+            t.bytes = Describe(s.header, depth_desc) ? std::max(1u, TotalSize(depth_desc)) : gw * gh * 4;
+        } else {
+            t.bytes = GuestPitch(gw) * gh;
+        }
         t.epoch = DirtyEpoch(data);
         t.sig = MemSig(data, t.bytes);
         // a fresh depth starts at 1 and stencil 0, the colour at black, as the console's surfaces do
@@ -691,17 +762,22 @@ private:
         return &(targets_.emplace(key, std::move(t)).first->second);
     }
 
-    void ReleaseTarget(std::unordered_map<uint64_t, Target>::iterator it) {
+    void ReleaseTarget(std::map<uint64_t, Target>::iterator it) {
         if (pass_color_ == &it->second.img || (pass_ds_ && pass_ds_ == &it->second)) {
             EndPass();
             pass_ds_ = nullptr;
         }
+        InvalidateFramebuffers(&it->second.img);
         // the frame's garbage takes the images over, they die when its submit is done
         g_ctx.Current().garbage_img.push_back(new Image(std::move(it->second.img)));
-        if (it->second.resolve) g_ctx.Current().garbage_img.push_back(it->second.resolve);
-        if (it->second.fb) g_ctx.Current().garbage_img.push_back(it->second.fb);
-        delete it->second.resolve;
-        delete it->second.fb;
+        if (it->second.resolve) {
+            g_ctx.Current().garbage_img.push_back(it->second.resolve);
+            it->second.resolve = nullptr;
+        }
+        if (it->second.fb) {
+            g_ctx.Current().garbage_img.push_back(it->second.fb);
+            it->second.fb = nullptr;
+        }
         targets_.erase(it);
     }
 
@@ -727,7 +803,10 @@ private:
         if (!CreateImage(out, kBgra, w, h, 1, 1, false, false, false, VK_SAMPLE_COUNT_1_BIT)) return false;
         uint32_t bytes = px.size() ? uint32_t(px.size()) : w * 4 * h;
         Upload up = AllocUpload(bytes, 16);
-        if (!up.buf) return false;
+        if (!up.buf) {
+            DestroyImage(out);
+            return false;
+        }
         if (pitch == w * 4)
             std::memcpy(up.cpu, px.data(), bytes);
         else
@@ -785,7 +864,7 @@ private:
     }
 
     bool CreateTexture(Tex& tx, const TextureDesc& d, const FormatInfo& fi) {
-        if (tx.img.image) g_ctx.Current().garbage_img.push_back(&tx.img);
+        if (tx.img.image) g_ctx.Current().garbage_img.push_back(new Image(std::move(tx.img)));
         tx = Tex{};
         tx.d = d;
         tx.fmt = HostTextureFormat(fi);
@@ -799,7 +878,7 @@ private:
             tx.levels = 1;
         }
         if (!CreateImage(tx.img, tx.fmt, w, h, tx.levels, volume ? 1 : layers, d.cube, false, false,
-                         VK_SAMPLE_COUNT_1_BIT))
+                         VK_SAMPLE_COUNT_1_BIT, volume ? std::max(d.depth, 1u) : 1))
             return false;
         return true;
     }
@@ -831,7 +910,27 @@ private:
         UploadImageLevel(tx.img, up.buf, up.off, l, f, w, h, z);
     }
 
-    void UploadTexture(Tex& tx, const TextureDesc& d, const FormatInfo& fi, const uint8_t* p, bool same) {
+    struct StagePalette {
+        uint32_t colours[256] = {};
+        uint32_t va = 0;
+        uint64_t hash = 0;
+    };
+
+    void ReadStagePalette(const State& s, int stage, const TextureDesc& d, StagePalette& palette) {
+        constexpr uint32_t kP8 = 0x0B;
+        constexpr uint32_t kPaletteData = 4;
+        constexpr uint32_t kPaletteSizeShift = 30;
+        if (d.format != kP8 || !s.palettes[size_t(stage)]) return;
+        uint32_t header = s.palettes[size_t(stage)];
+        palette.va = mem::VirtualFromPhysical(kernel::R32(header + kPaletteData));
+        uint32_t size_code = kernel::R32(header) >> kPaletteSizeShift;
+        size_t bytes = (std::size(palette.colours) >> size_code) * sizeof(uint32_t);
+        std::memcpy(palette.colours, kernel::HostPtr(palette.va), bytes);
+        palette.hash = Hash(palette.colours, sizeof(palette.colours));
+    }
+
+    void UploadTexture(Tex& tx, const TextureDesc& d, const FormatInfo& fi, const uint8_t* p,
+                       const uint32_t* palette) {
         EndPass();
         Transition(tx.img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         uint32_t faces = d.cube ? 6 : 1;
@@ -839,7 +938,7 @@ private:
         for (uint32_t f = 0; f < faces; f++)
             for (uint32_t l = 0; l < tx.levels; l++) {
                 uint32_t pitch;
-                DecodeLevel(d, l, f, p, nullptr, px, pitch);
+                DecodeLevel(d, l, f, p, palette, px, pitch);
                 if (d.cube && !l) UpdateNormCube(tx, d, fi, f, px, pitch);
                 if (tx.fmt != kBgra) {
                     UploadTextureLevel(tx, f, l, px, pitch);
@@ -861,19 +960,23 @@ private:
     }
 
     // a texture in guest memory: made again when its layout changed, uploaded again when its bytes did
-    Tex* BindGuestTexture(int stage, const TextureDesc& d, const FormatInfo& fi) {
-        Tex& tx = textures_[d.data];
+    Tex* BindGuestTexture(const State& s, int stage, const TextureDesc& d, const FormatInfo& fi) {
+        StagePalette palette;
+        ReadStagePalette(s, stage, d, palette);
+        uint64_t key = uint64_t(palette.va) << 32 | d.data;
+        Tex& tx = textures_[key];
         uint32_t total = TotalSize(d);
         bool same = SameTexture(tx, d);
         if (!same && !CreateTexture(tx, d, fi)) return nullptr;
         // cheap change check once per frame: lock epochs plus a sample of the bytes
-        if (tx.frame != g_ctx.presents + 1 || !same) {
+        if (tx.frame != g_ctx.presents + 1 || !same || tx.palette != palette.hash) {
             tx.frame = g_ctx.presents + 1;
             const uint8_t* p = static_cast<const uint8_t*>(kernel::HostPtr(d.data));
-            uint64_t sig = MemSig(d.data, total) ^ DirtyEpoch(d.data);
+            uint64_t sig = MemSig(d.data, total) ^ DirtyEpoch(d.data) ^ palette.hash;
             if (sig != tx.sig || !same) {
                 tx.sig = sig;
-                UploadTexture(tx, d, fi, p, same);
+                tx.palette = palette.hash;
+                UploadTexture(tx, d, fi, p, palette.va ? palette.colours : nullptr);
             }
         }
         return &tx;
@@ -926,7 +1029,7 @@ private:
         if (tit != targets_.end() && tit->second.gw == d.width && tit->second.gh == d.height)
             return BindTargetTexture(s, stage, d, tit->second, tx, rt, ds);
         const FormatInfo& fi = Format(d.format);
-        Tex* t = BindGuestTexture(stage, d, fi);
+        Tex* t = BindGuestTexture(s, stage, d, fi);
         if (!t) return nullptr;
         info.kind = d.cube ? kTexCube : d.depth > 1 ? kTex3D : kTex2D;
         if (fi.depth) info.shadow = tx.shadow[size_t(stage)] = ShadowDepthKind(d.format);
@@ -955,6 +1058,7 @@ private:
         if (t.depth) info.shadow = tx.shadow[size_t(stage)] = ShadowDepthKind(d.format);
         // the console reads the pixels it is about to overwrite: give the draw a copy
         if (feedback) return EnsureFeedbackCopy(t);
+        Transition(t.img, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         return &t.img;
     }
 
@@ -972,17 +1076,34 @@ private:
 
     uint64_t EnsureVertexShader(const State& s, const Assembled& a, const DrawShaders& sh) {
         if (shader_src_.count(sh.vkey)) return sh.vkey;
+        LOGI("vulkan: vertex translation begin key=%016llx program=%u regs=%04x decode=%016llx", (unsigned long long)sh.vkey,
+             sh.prog ? 1 : 0, a.regs, (unsigned long long)a.decode);
+        logx::Flush();
         std::string src = VertexHlsl(s, a, sh);
-        RegisterShaderSource(sh.vkey, sh.quad ? QuadHlsl(std::move(src)) : src, VK_SHADER_STAGE_VERTEX_BIT);
+        if (sh.quad) src = QuadHlsl(std::move(src));
+        else if (a.topology == Topology::Points) {
+            std::string points = PointsHlsl(src);
+            if (!points.empty()) src = std::move(points);
+        }
+        LOGI("vulkan: vertex translation complete key=%016llx source=%zu", (unsigned long long)sh.vkey, src.size());
+        RegisterShaderSource(sh.vkey, src, VK_SHADER_STAGE_VERTEX_BIT);
         shader_src_.insert(sh.vkey);
+        LOGI("vulkan: vertex source registered key=%016llx", (unsigned long long)sh.vkey);
+        logx::Flush();
         return sh.vkey;
     }
 
     uint64_t EnsurePixelShader(const PixelKey& pk) {
         uint64_t key = Hash(&pk, sizeof(pk)) ^ kPixelKeySalt;
         if (shader_src_.count(key)) return key;
-        RegisterShaderSource(key, PixelHlsl(pk), VK_SHADER_STAGE_FRAGMENT_BIT);
+        LOGI("vulkan: pixel translation begin key=%016llx", (unsigned long long)key);
+        logx::Flush();
+        std::string src = PixelHlsl(pk);
+        LOGI("vulkan: pixel translation complete key=%016llx source=%zu", (unsigned long long)key, src.size());
+        RegisterShaderSource(key, src, VK_SHADER_STAGE_FRAGMENT_BIT);
         shader_src_.insert(key);
+        LOGI("vulkan: pixel source registered key=%016llx", (unsigned long long)key);
+        logx::Flush();
         return key;
     }
 
@@ -1133,7 +1254,7 @@ private:
         VkSampler smp[4] = {};
     };
 
-    void WriteAndBindDraw(const DrawBind& b, const Pipeline& pl) {
+    bool WriteAndBindDraw(const DrawBind& b, const Pipeline& pl) {
         Frame& f = g_ctx.Current();
         for (uint32_t set = 0; set < 4; set++) {
             if (!pl.sets[set]) continue;
@@ -1142,10 +1263,13 @@ private:
             ai.descriptorPool = f.dpool;
             ai.descriptorSetCount = 1;
             ai.pSetLayouts = &pl.sets[set];
-            if (!VKCHECK(vkAllocateDescriptorSets(g_ctx.dev, &ai, &ds))) continue;
+            if (!VKCHECK(vkAllocateDescriptorSets(g_ctx.dev, &ai, &ds))) return false;
             std::vector<VkWriteDescriptorSet> writes;
             std::vector<VkDescriptorBufferInfo> bufs;
             std::vector<VkDescriptorImageInfo> imgs;
+            bool complete = true;
+            bufs.reserve(pl.bindings.size());
+            imgs.reserve(pl.bindings.size());
             for (const ReflectBinding& rb : pl.bindings) {
                 if (rb.set != set) continue;
                 VkWriteDescriptorSet w{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -1154,8 +1278,9 @@ private:
                 w.descriptorCount = rb.count;
                 w.descriptorType = rb.type;
                 if (rb.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
-                    bufs.push_back(rb.name == "c" ? VkDescriptorBufferInfo{f.upload, b.vs_off, 192 * 16}
-                                                  : VkDescriptorBufferInfo{f.upload, b.dc_off, sizeof(DrawConstants)});
+                    bufs.push_back((rb.name == "c" || rb.name == "VC")
+                                       ? VkDescriptorBufferInfo{f.upload, b.vs_off, 192 * 16}
+                                       : VkDescriptorBufferInfo{f.upload, b.dc_off, sizeof(DrawConstants)});
                     w.pBufferInfo = &bufs.back();
                 } else if (rb.type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
                     int idx = rb.name.size() > 3 ? rb.name[3] - '0' : -1;
@@ -1167,14 +1292,29 @@ private:
                     VkSampler s = idx >= 0 && idx < 4 && b.smp[idx] ? b.smp[idx] : point_sampler_;
                     imgs.push_back({s, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED});
                     w.pImageInfo = &imgs.back();
+                } else if (rb.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+                    int idx = rb.name.size() > 3 ? rb.name[3] - '0' : -1;
+                    if (!fallback_) {
+                        complete = false;
+                        continue;
+                    }
+                    VkImageView view = idx >= 0 && idx < 4 && b.tex[idx] ? b.tex[idx] : fallback_->read;
+                    VkSampler s = idx >= 0 && idx < 4 && b.smp[idx] ? b.smp[idx] : point_sampler_;
+                    imgs.push_back({s, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+                    w.pImageInfo = &imgs.back();
                 } else {
+                    LOGE("vulkan: unsupported draw descriptor set=%u binding=%u type=%u name=%s", set, rb.binding,
+                         uint32_t(rb.type), rb.name.c_str());
+                    complete = false;
                     continue;
                 }
                 writes.push_back(w);
             }
+            if (!complete) return false;
             if (!writes.empty()) vkUpdateDescriptorSets(g_ctx.dev, uint32_t(writes.size()), writes.data(), 0, nullptr);
             vkCmdBindDescriptorSets(f.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pl.layout, set, 1, &ds, 0, nullptr);
         }
+        return true;
     }
 
     void SetDrawDynamic(const State& s, const PsoKey& k, Target* rt, Target* ds, GuestSize size) {
@@ -1197,10 +1337,13 @@ private:
                          uint32_t(std::max(0, std::clamp(x1, 0, int32_t(W)) - std::clamp(x0, 0, int32_t(W)))),
                          uint32_t(std::max(0, std::clamp(y1, 0, int32_t(H)) - std::clamp(y0, 0, int32_t(H))))};
         vkCmdSetScissor(f.cmd, 0, 1, &rect);
-        float bf[4];
-        Color(SimpleState(s, kMBlendColor), bf);
-        vkCmdSetBlendConstants(f.cmd, bf);
-        vkCmdSetStencilReference(f.cmd, VK_STENCIL_FACE_FRONT_AND_BACK, SimpleState(s, kMStencilRef) & 0xFF);
+        if (k.blend) {
+            float bf[4];
+            Color(SimpleState(s, kMBlendColor), bf);
+            vkCmdSetBlendConstants(f.cmd, bf);
+        }
+        if (k.has_ds && k.sten)
+            vkCmdSetStencilReference(f.cmd, VK_STENCIL_FACE_FRONT_AND_BACK, SimpleState(s, kMStencilRef) & 0xFF);
         if (k.has_ds && (k.zbias || k.zslope != 0)) vkCmdSetDepthBias(f.cmd, float(k.zbias), 0, k.zslope);
     }
 
@@ -1228,10 +1371,12 @@ private:
             ai.descriptorPool = f.dpool;
             ai.descriptorSetCount = 1;
             ai.pSetLayouts = &g_blit.sets[set];
-            if (!VKCHECK(vkAllocateDescriptorSets(g_ctx.dev, &ai, &dset))) continue;
+            if (!VKCHECK(vkAllocateDescriptorSets(g_ctx.dev, &ai, &dset))) return;
             std::vector<VkWriteDescriptorSet> writes;
             std::vector<VkDescriptorBufferInfo> bufs;
             std::vector<VkDescriptorImageInfo> imgs;
+            bufs.reserve(g_blit.bindings.size());
+            imgs.reserve(g_blit.bindings.size());
             for (const ReflectBinding& rb : g_blit.bindings) {
                 if (rb.set != set) continue;
                 VkWriteDescriptorSet w{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -1244,7 +1389,7 @@ private:
                     w.pBufferInfo = &bufs.back();
                 } else if (rb.type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE) {
                     bool lut = rb.name == "lut";
-                    imgs.push_back({VK_NULL_HANDLE, lut ? lut_->read : src.read,
+                    imgs.push_back({VK_NULL_HANDLE, lut ? (lut_ ? lut_->read : src.read) : src.read,
                                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
                     w.pImageInfo = &imgs.back();
                 } else if (rb.type == VK_DESCRIPTOR_TYPE_SAMPLER) {
@@ -1265,6 +1410,8 @@ private:
     // a full screen pass over one target: pass begun, blit drawn, pass ended
     void BlitTo(Image& dst, uint32_t w, uint32_t h, Image& src, const float (&uv)[4], const BlitOptions& o) {
         EndPass();
+        if (&dst == &src) return;
+        Transition(src, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         if (!BeginPass(dst, nullptr, false)) return;
         VkViewport vp{0, 0, float(w), float(h), 0, 1};
         VkRect2D sc{{0, 0}, {w, h}};
@@ -1275,13 +1422,13 @@ private:
     }
 
     // a scratch guest sized image for read backs of upscaled targets
-    Image& EnsureScratch(uint32_t w, uint32_t h) {
+    Image* EnsureScratch(uint32_t w, uint32_t h) {
         uint64_t key = uint64_t(w) << 20 | h;
         auto it = scratch_.find(key);
-        if (it != scratch_.end()) return it->second;
+        if (it != scratch_.end()) return &it->second;
         Image img{};
-        CreateImage(img, kBgra, w, h, 1, 1, false, false, true, VK_SAMPLE_COUNT_1_BIT);
-        return scratch_.emplace(key, img).first->second;
+        if (!CreateImage(img, kBgra, w, h, 1, 1, false, false, true, VK_SAMPLE_COUNT_1_BIT)) return nullptr;
+        return &scratch_.emplace(key, std::move(img)).first->second;
     }
 
     // ========================================================================
@@ -1353,6 +1500,27 @@ private:
         }
     }
 
+    void ApplySettings() {
+        float want_scale;
+        uint32_t want_shadow;
+        {
+            std::lock_guard lock(app::UiLock());
+            want_scale = app::RenderScale(guest_h_);
+            want_shadow = app::Get().shadow_resolution;
+        }
+        if (std::fabs(want_scale - scale_) <= 1e-4f && want_shadow == shadow_res_) return;
+        if (!VKCHECK(vkDeviceWaitIdle(g_ctx.dev))) return;
+        ClearFramebuffers();
+        for (auto it = targets_.begin(); it != targets_.end();) {
+            auto next = std::next(it);
+            ReleaseTarget(it);
+            it = next;
+        }
+        scale_ = want_scale;
+        shadow_res_ = want_shadow;
+        LOGI("vulkan: render scale %.3f, shadow resolution %u", scale_, shadow_res_);
+    }
+
     // ========================================================================
     // Backend
     // ========================================================================
@@ -1360,8 +1528,22 @@ private:
     void Draw(const State& s, uint32_t prim, uint32_t start, uint32_t count, const uint8_t* indices) override {
         std::lock_guard lock(draw_lock_);
         if (!Record()) return;
+        const bool trace = !first_draw_seen_;
+        if (trace) {
+            first_draw_seen_ = true;
+            LOGI("vulkan: first draw begin prim=%u start=%u count=%u indexed=%u", prim, start, count, indices ? 1 : 0);
+            logx::Flush();
+        }
         Assembled a;
-        if (!Assemble(s, prim, start, count, indices, a)) return;
+        if (!Assemble(s, prim, start, count, indices, a)) {
+            if (trace) LOGE("vulkan: first draw assembly failed");
+            return;
+        }
+        if (trace) {
+            LOGI("vulkan: first draw assembly complete regs=%04x vertices=%u buffers=%u", a.regs, a.vertex_count,
+                 a.buffer_count);
+            logx::Flush();
+        }
         // a versus level's first frame draws everything once (thousands of draws, over 64 MB): past the ring every
         // upload was a buffer of its own, seconds of creating and then freeing them
         if (g_ctx.Current().used > kUploadSize - kUploadReserve) {
@@ -1373,7 +1555,9 @@ private:
         Target* rt = EnsureTarget(s.rt, false);
         Target* ds = s.rs[kRsZEnable] || s.rs[kRsStencilEnable] ? EnsureTarget(s.zs, true) : nullptr;
         if (rt && ds && (rt->w != ds->w || rt->h != ds->h)) ds = nullptr;
-        if (!rt && !ds) return;
+        // This backend always builds a colour-attachment pipeline. A depth-only draw
+        // must not reach vkCmdDraw outside a render pass.
+        if (!rt) return;
         if (rt && LatchCpuWrite(*rt)) UploadTarget(*rt, s.rt);
         EndPass();
 
@@ -1397,7 +1581,10 @@ private:
         bool pending = false;
         // a quad is a picture or a pass over the screen: left out it shows what lies under it, so it waits for its
         // pipeline; other draws skip until the build threads have theirs
-        if (!EnsurePipeline(k, count <= kQuadVertices, &pipe, pending) || !pipe) return;
+        if (!EnsurePipeline(k, count <= kQuadVertices, &pipe, pending) || !pipe) {
+            if (trace) LOGE("vulkan: first draw pipeline unavailable pending=%u", pending ? 1 : 0);
+            return;
+        }
 
         // the pass and the draw
         if (rt && !BeginPass(rt->img, ds, false)) return;
@@ -1410,21 +1597,39 @@ private:
         for (int i = 0; i < 4; i++) bind.tex[i] = tx.view[i] ? tx.view[i]->read : nullptr;
         std::array<uint8_t, 4> shadows{};
         for (int i = 0; i < 4; i++) shadows[size_t(i)] = tx.shadow[i];
-        uint32_t aniso_setting = app::Get().aniso;
+        uint32_t aniso_setting;
+        {
+            std::lock_guard lock(app::UiLock());
+            aniso_setting = app::Get().aniso;
+        }
         for (int i = 0; i < 4; i++) {
             if (!s.textures[size_t(i)]) continue;
             bind.smp[i] = GetSampler(StageSampler(s, i, shadows, aniso_setting, g_ctx.sampled_depth24));
         }
-        WriteAndBindDraw(bind, *pipe);
+        vkCmdBindPipeline(g_ctx.Current().cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipe->pipe);
+        if (!WriteAndBindDraw(bind, *pipe)) return;
         SetDrawDynamic(s, k, rt, ds, size);
         cache::StorePipeline(Hash(&k, sizeof(k)), &k, sizeof(k));
 
         // geometry
         DrawGeometry(a);
+        rt->drawn = true;
+        if (ds) ds->drawn = true;
+        if (trace) {
+            LOGI("vulkan: first draw complete pipeline=%p", reinterpret_cast<void*>(pipe->pipe));
+            logx::Flush();
+        }
     }
 
     void DrawGeometry(const Assembled& a) {
         Frame& f = g_ctx.Current();
+        const bool trace = !first_vk_draw_seen_;
+        if (trace) {
+            first_vk_draw_seen_ = true;
+            LOGI("vulkan: first geometry command begin vertices=%u indices=%u buffers=%u", a.vertex_count, a.index_count,
+                 a.buffer_count);
+            logx::Flush();
+        }
         std::array<VkBuffer, 16> bufs{};
         std::array<VkDeviceSize, 16> offs{};
         uint32_t bind_count = a.buffer_count;
@@ -1432,13 +1637,20 @@ private:
             if (!((a.regs >> r) & 1)) continue;
             bind_count = std::max<uint32_t>(bind_count, uint32_t(a.elements[r].buffer) + 1);
         }
+        if (bind_count > bufs.size()) {
+            if (trace) LOGE("vulkan: first geometry command has too many vertex bindings: %u", bind_count);
+            return;
+        }
         Upload zero;
         for (uint32_t i = 0; i < bind_count; i++) {
             const VertexBuffer* b = i < a.buffer_count ? &a.buffers[i] : nullptr;
             if (!b || !b->src || !b->bytes) {
                 if (!zero.buf) {
                     zero = AllocUpload(64, 16);
-                    if (!zero.buf) return;
+                    if (!zero.buf) {
+                        if (trace) LOGE("vulkan: first geometry command failed allocating zero buffer");
+                        return;
+                    }
                     std::memset(zero.cpu, 0, 64);
                 }
                 bufs[i] = zero.buf;
@@ -1446,7 +1658,10 @@ private:
                 continue;
             }
             Upload vb = AllocUpload(b->bytes, 16);
-            if (!vb.buf) return;
+            if (!vb.buf) {
+                if (trace) LOGE("vulkan: first geometry command failed allocating vertex upload");
+                return;
+            }
             std::memcpy(vb.cpu, b->src, b->bytes);
             bufs[i] = vb.buf;
             offs[i] = vb.off;
@@ -1455,12 +1670,21 @@ private:
         if (a.index_count) {
             uint32_t ibytes = a.index_count * (a.index16 ? 2 : 4);
             Upload ib = AllocUpload(ibytes, 4);
-            if (!ib.buf) return;
+            if (!ib.buf) {
+                if (trace) LOGE("vulkan: first geometry command failed allocating index upload");
+                return;
+            }
             std::memcpy(ib.cpu, a.index_src, ibytes);
             vkCmdBindIndexBuffer(f.cmd, ib.buf, ib.off, a.index16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+            if (trace) LOGI("vulkan: vkCmdDrawIndexed begin count=%u base=%d", a.index_count, a.base_vertex);
             vkCmdDrawIndexed(f.cmd, a.index_count, 1, 0, a.base_vertex, 0);
         } else {
+            if (trace) LOGI("vulkan: vkCmdDraw begin count=%u", a.draw_count);
             vkCmdDraw(f.cmd, a.draw_count, 1, 0, 0);
+        }
+        if (trace) {
+            LOGI("vulkan: first geometry command complete");
+            logx::Flush();
         }
     }
 
@@ -1475,6 +1699,11 @@ private:
             LOG_FIRST(4, "vulkan: CopyRects without targets between %08X and %08X", src.data, dst.data);
             return;
         }
+        Image* source = &st->img;
+        if (st == dt) {
+            source = EnsureFeedbackCopy(*st);
+            if (!source) return;
+        }
         EndPass();
         for (uint32_t i = 0; i < std::max(count, 1u); i++) {
             int32_t sr[4] = {0, 0, int32_t(st->gw), int32_t(st->gh)};
@@ -1483,7 +1712,7 @@ private:
             if (count && dst_points_va) std::memcpy(dp, kernel::HostPtr(dst_points_va + i * 8), 8);
             int32_t w = std::max<int32_t>(0, sr[2] - sr[0]), h = std::max<int32_t>(0, sr[3] - sr[1]);
             if (!w || !h) continue;
-            Transition(st->img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+            Transition(*source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
             if (st->w == st->gw && dt->w == dt->gw && st->fmt == dt->fmt) {
                 // one to one: a plain copy
                 Transition(dt->img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -1494,19 +1723,20 @@ private:
                 region.dstOffset = {std::clamp(dp[0], 0, int32_t(dt->gw)), std::clamp(dp[1], 0, int32_t(dt->gh)), 0};
                 region.extent = {uint32_t(std::min<uint32_t>(w, st->gw - region.srcOffset.x)),
                                  uint32_t(std::min<uint32_t>(h, st->gh - region.srcOffset.y)), 1};
-                vkCmdCopyImage(g_ctx.Current().cmd, st->img.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dt->img.image,
+                vkCmdCopyImage(g_ctx.Current().cmd, source->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dt->img.image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
             } else {
                 // scaled: the blit, one tap per console pixel
                 float uv[4] = {float(sr[0]) / st->gw, float(sr[1]) / st->gh, float(w) / st->gw, float(h) / st->gh};
                 float sc = float(dt->w) / dt->gw;
                 float vw = w * sc, vh = h * sc;
+                Transition(*source, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
                 if (!BeginPass(dt->img, nullptr, false)) return;
                 VkViewport vp{dp[0] * sc, dp[1] * sc, vw, vh, 0, 1};
                 VkRect2D scissor{{0, 0}, {dt->w, dt->h}};
                 vkCmdSetViewport(g_ctx.Current().cmd, 0, 1, &vp);
                 vkCmdSetScissor(g_ctx.Current().cmd, 0, 1, &scissor);
-                BlitDrawInPass(dt->img, st->img, uv, {.alpha = true});
+                BlitDrawInPass(dt->img, *source, uv, {.alpha = true});
                 EndPass();
             }
         }
@@ -1517,17 +1747,51 @@ private:
 
     void Present(const Surface& front, bool pillarbox) override {
         std::lock_guard lock(draw_lock_);
+        const uint64_t present_call = g_ctx.present_calls++;
+        g_ctx.present_fence[present_call % g_ctx.present_fence.size()] = 0;
         if (!Record()) return;
-        const app::Settings& set = app::Get();
-        UploadGammaRamp(set.brightness, set.contrast);
+        const bool trace = !first_present_seen_;
+        if (trace) {
+            first_present_seen_ = true;
+            LOGI("vulkan: first present begin surface=%08x pillarbox=%u", front.header, pillarbox ? 1 : 0);
+            logx::Flush();
+        }
+        uint32_t brightness;
+        uint32_t contrast;
+        {
+            std::lock_guard settings_lock(app::UiLock());
+            const app::Settings& set = app::Get();
+            brightness = set.brightness;
+            contrast = set.contrast;
+        }
+        UploadGammaRamp(brightness, contrast);
         Target* t = EnsureTarget(front, false);
         if (t && LatchCpuWrite(*t)) UploadTarget(*t, front);
-        if (!AcquireNextImage()) return;
+        if (!AcquireNextImage()) {
+            SubmitDroppedFrame();
+            g_ctx.present_fence[present_call % g_ctx.present_fence.size()] = g_ctx.Current().fence_value;
+            if (trace) LOGI("vulkan: first present dropped before acquire");
+            return;
+        }
         Image& swap = g_ctx.swap_targets[g_ctx.swap_index];
         // the frame on the panel: the target through the gamma lookup, 4:3 in the middle when pillarbox says so
-        if (!BeginPass(swap, nullptr, true)) return;
+        // Image barriers must be recorded outside an active render pass.
+        EndPass();
+        if (t) Transition(t->img, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        if (!BeginPass(swap, nullptr, true)) {
+            // The acquired image still has to be returned to the presentation engine. Presenting
+            // its undefined contents is preferable to leaving the acquire semaphore unsatisfied.
+            PresentSwapchain(false);
+            g_ctx.present_fence[present_call % g_ctx.present_fence.size()] = g_ctx.Current().fence_value;
+            recording_ = false;
+            return;
+        }
         if (t) {
-            float aspect = app::Aspect();
+            float aspect;
+            {
+                std::lock_guard settings_lock(app::UiLock());
+                aspect = app::Aspect();
+            }
             float w = float(g_ctx.bb_w), h = float(g_ctx.bb_h);
             float vw = std::min(w, h * aspect), vh = vw / aspect;
             if (pillarbox) vw = vh * 4.0f / 3.0f;
@@ -1538,9 +1802,16 @@ private:
             BlitDrawInPass(swap, t->img, {0, 0, 1, 1}, {.gamma = gamma_});
         }
         EndPass();
-        PresentSwapchain(pillarbox);
+        bool presented = PresentSwapchain(pillarbox);
+        g_ctx.present_fence[present_call % g_ctx.present_fence.size()] = g_ctx.Current().fence_value;
+        if (trace) {
+            LOGI("vulkan: first present %s presents=%llu", presented ? "complete" : "failed",
+                 (unsigned long long)g_ctx.presents);
+            logx::Flush();
+        }
         recording_ = false;
         ReleaseOldTextures();
+        ApplySettings();
     }
 
     // the CPU reads a surface the GPU drew: bring the pixels back
@@ -1549,15 +1820,17 @@ private:
         auto it = targets_.find(TargetKey(data, false));
         if (it == targets_.end() || !it->second.drawn) return;
         Target& t = it->second;
+        if (!Record()) return;
         EndPass();
         std::vector<uint8_t> px;
         if (t.w == t.gw && t.h == t.gh) {
             if (!ReadBackImage(t.img, t.gw, t.gh, px)) return;
         } else {
             // shrunk into a guest sized copy first, one tap per console pixel
-            Image& down = EnsureScratch(t.gw, t.gh);
-            BlitTo(down, t.gw, t.gh, t.img, {0, 0, 1, 1}, {.alpha = true});
-            if (!ReadBackImage(down, t.gw, t.gh, px)) return;
+            Image* down = EnsureScratch(t.gw, t.gh);
+            if (!down) return;
+            BlitTo(*down, t.gw, t.gh, t.img, {0, 0, 1, 1}, {.alpha = true});
+            if (!ReadBackImage(*down, t.gw, t.gh, px)) return;
         }
         uint32_t pitch = GuestPitch(t.gw);
         uint8_t* guest = static_cast<uint8_t*>(kernel::HostPtr(data));
@@ -1575,6 +1848,7 @@ private:
     }
 
     bool DeliverLate(uint32_t data) override {
+        std::lock_guard draw_lock(draw_lock_);
         std::lock_guard lock(late_lock_);
         auto it = late_.find(data);
         if (it == late_.end()) return false;
@@ -1612,6 +1886,9 @@ private:
         std::lock_guard llock(late_lock_);
         Late& l = late_[data];
         if (l.gw != t.gw || l.gh != t.gh) {
+            uint64_t done = CompletedFence();
+            for (const auto& slot : l.slots)
+                if (slot.fence && slot.fence > done) return;
             ResetLate(l);
             l.gw = t.gw;
             l.gh = t.gh;
@@ -1620,16 +1897,19 @@ private:
         if (l.slots[slot].fence && l.slots[slot].fence > CompletedFence()) return;  // a whole ring behind
         Image* src = &t.img;
         if (t.w != t.gw || t.h != t.gh) {
-            Image& down = EnsureScratch(t.gw, t.gh);
-            BlitTo(down, t.gw, t.gh, t.img, {0, 0, 1, 1}, {.alpha = true});
-            src = &down;
+            Image* down = EnsureScratch(t.gw, t.gh);
+            if (!down) return;
+            BlitTo(*down, t.gw, t.gh, t.img, {0, 0, 1, 1}, {.alpha = true});
+            src = down;
         }
         if (!l.slots[slot].buf) {
             uint64_t bytes = uint64_t(t.gw) * 4 * t.gh;
+            VkDeviceSize allocation_size = 0, allocation_offset = 0;
             if (!MakeBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT, &l.slots[slot].block, &l.slots[slot].off,
-                            &l.slots[slot].buf, true))
+                            &l.slots[slot].buf, true, &allocation_size, &allocation_offset))
                 return;
-            l.slots[slot].bytes = bytes;
+            l.slots[slot].free_offset = allocation_offset;
+            l.slots[slot].bytes = allocation_size;
         }
         EndPass();
         Transition(*src, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -1663,15 +1943,28 @@ private:
     void ApplyShadows(const State&) override {}
 
     // the XDK's fences and busy checks against the render thread; a backend that draws at once is never behind
-    uint32_t Fence() override { return uint32_t(g_ctx.fence_value + 1); }
-    bool FencePending(uint32_t fence) override { return uint64_t(fence) > CompletedFence(); }
-    void WaitFence(uint32_t fence) override { WaitFenceValue(fence); }
+    uint32_t Fence() override {
+        std::lock_guard lock(draw_lock_);
+        return uint32_t(g_ctx.fence_value + 1);
+    }
+    bool FencePending(uint32_t fence) override {
+        std::lock_guard lock(draw_lock_);
+        return uint64_t(fence) > CompletedFence();
+    }
+    void WaitFence(uint32_t fence) override {
+        std::lock_guard lock(draw_lock_);
+        WaitFenceValue(fence);
+    }
     bool Busy(uint32_t) override { return false; }
     void WaitResource(uint32_t) override {}
 
     // until the GPU has drawn present number n, counted from 0; any thread
     void WaitGpuFrame(uint64_t n) override {
-        if (n < g_ctx.present_fence.size()) WaitFenceValue(g_ctx.present_fence[n].load());
+        std::lock_guard lock(draw_lock_);
+        if (n < g_ctx.present_calls && !g_ctx.present_fence.empty()) {
+            uint64_t fence = g_ctx.present_fence[n % g_ctx.present_fence.size()].load();
+            if (fence) WaitFenceValue(fence);
+        }
     }
 
 private:
@@ -1687,7 +1980,7 @@ private:
     void ResetLate(Late& l) {
         for (auto& s : l.slots) {
             if (s.buf) vkDestroyBuffer(g_ctx.dev, s.buf, nullptr);
-            if (s.block) Subfree(s.block, s.off, s.bytes);
+            if (s.block) Subfree(s.block, s.free_offset, s.bytes);
         }
         l = Late{};
     }
@@ -1696,18 +1989,21 @@ private:
     float scale_ = 1.0f;
     uint32_t shadow_res_ = kConsoleShadows;
     bool recording_ = false;
+    bool first_draw_seen_ = false;
+    bool first_vk_draw_seen_ = false;
+    bool first_present_seen_ = false;
     bool gamma_ = false;
     uint32_t ramp_set_ = 0xFFFFFFFF;
     std::recursive_mutex draw_lock_;   // the render thread's calls, in order
     std::mutex late_lock_;             // the late copies, the game thread reads them too
-    std::unordered_map<uint64_t, Target> targets_;
-    std::unordered_map<uint32_t, Tex> textures_;
+    std::map<uint64_t, Target> targets_;
+    std::map<uint64_t, Tex> textures_;
     std::unordered_map<uint64_t, VkSampler> samplers_;
     std::unordered_map<uint64_t, Image> scratch_;  // guest sized read back copies, by w << 20 | h
     struct LateSlot {
         VkBuffer buf = VK_NULL_HANDLE;
         MemBlock* block = nullptr;
-        VkDeviceSize off = 0, bytes = 0;
+        VkDeviceSize off = 0, free_offset = 0, bytes = 0;
         uint64_t fence = 0, frame = 0;
     };
     struct Late {

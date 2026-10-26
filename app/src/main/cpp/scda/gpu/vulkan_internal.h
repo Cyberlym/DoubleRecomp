@@ -19,7 +19,9 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -49,13 +51,48 @@ constexpr uint64_t kBlockBytes = 64ull << 20;
 // BGRA is what the console's surfaces and the swapchain hold
 constexpr VkFormat kBgra = VK_FORMAT_B8G8R8A8_UNORM;
 
-#define VKCHECK(call)                                                                                                 \
-    ({                                                                                                                \
-        VkResult _r = (call);                                                                                         \
-        if (_r != VK_SUCCESS) {                                                                                       \
-            LOGE("vulkan: %s failed: %d at %s:%d", #call, int(_r), __FILE__, __LINE__);                               \
-        }                                                                                                             \
-        _r == VK_SUCCESS;                                                                                             \
+inline const char* VkResultName(VkResult r) {
+    switch (r) {
+        case VK_SUCCESS: return "VK_SUCCESS";
+        case VK_NOT_READY: return "VK_NOT_READY";
+        case VK_TIMEOUT: return "VK_TIMEOUT";
+        case VK_EVENT_SET: return "VK_EVENT_SET";
+        case VK_EVENT_RESET: return "VK_EVENT_RESET";
+        case VK_INCOMPLETE: return "VK_INCOMPLETE";
+        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+        case VK_ERROR_UNKNOWN: return "VK_ERROR_UNKNOWN";
+        case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
+        case VK_ERROR_INVALID_EXTERNAL_HANDLE: return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+        case VK_ERROR_FRAGMENTATION: return "VK_ERROR_FRAGMENTATION";
+        case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
+        case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
+        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+        case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
+        default: return "VK_RESULT_UNKNOWN";
+    }
+}
+
+#define VKCHECK(call)                                                                                                  \
+    ({                                                                                                                 \
+        VkResult _r = (call);                                                                                          \
+        if (_r != VK_SUCCESS) {                                                                                        \
+            LOGE("vulkan: %s failed: %s (%d) at %s:%d", #call, VkResultName(_r), int(_r), __FILE__, __LINE__);        \
+        }                                                                                                              \
+        _r == VK_SUCCESS;                                                                                              \
     })
 
 // D3D state decode helpers, as d3d12.cpp defines them
@@ -74,6 +111,8 @@ inline void Color(uint32_t c, float out[4]) {
 // the guest colour surface pitch, 64 byte steps as the console's linear colour formats hold
 inline uint32_t GuestPitch(uint32_t w) { return (w * 4 + 63) & ~63u; }
 
+extern std::mutex g_pipe_create_lock;
+
 // one memory block: device memory with a first fit free list
 struct MemBlock {
     VkDeviceMemory mem = VK_NULL_HANDLE;
@@ -91,7 +130,7 @@ struct Image {
     VkImageView read = VK_NULL_HANDLE;   // shader resource: 2D, 3D or cube, depth aspect for depth targets
     VkImageView attach = VK_NULL_HANDLE; // framebuffer attachment view (colour or depth stencil)
     MemBlock* block = nullptr;
-    VkDeviceSize offset = 0, bytes = 0;
+    VkDeviceSize offset = 0, free_offset = 0, bytes = 0;
     VkFormat fmt = kBgra;
     uint32_t w = 0, h = 0, levels = 1, layers = 1;
     bool depth = false, cube = false, render_target = false;
@@ -107,6 +146,7 @@ struct Tex {
     uint32_t levels = 1;
     uint64_t sig = 0;
     uint64_t frame = 0;
+    uint64_t palette = 0;
     bool norm = false;  // a normalization cube
 };
 
@@ -137,6 +177,10 @@ struct Frame {
     VkDeviceSize used = 0;
     VkDescriptorPool dpool = VK_NULL_HANDLE;
     uint64_t fence_value = 0;
+    std::vector<VkFramebuffer> garbage_fb;
+    std::vector<VkImageView> garbage_views;
+    std::vector<VkSwapchainKHR> garbage_swapchains;
+    std::vector<VkSurfaceKHR> garbage_surfaces;
     std::vector<Image*> garbage_img;
     std::vector<VkBuffer> garbage_buf;
     std::vector<VkDeviceMemory> garbage_mem;
@@ -180,11 +224,13 @@ struct Ctx {
     uint64_t done_value = 0;   // the highest fence completed
     VkPipelineCache pipe_cache = VK_NULL_HANDLE;
     uint64_t presents = 0;
+    uint64_t present_calls = 0;
     // present pacing: the submit a present went out with, by its count modulo the slots
     std::array<std::atomic<uint64_t>, kFrames + 1> present_fence{};
     // acquired image for the present being recorded, and whether one was acquired
     uint32_t swap_index = 0;
     bool swap_acquired = false;
+    bool swap_stale = false;
 
     Frame& Current() { return frames[frame_index % kFrames]; }
 };
@@ -200,7 +246,8 @@ bool ResizeSwap();
 // suballocation from 64 MB blocks per memory type
 bool AllocBlock(uint32_t type, VkDeviceSize size, bool host, MemBlock** out);
 bool Suballoc(uint32_t type_bits, VkDeviceSize size, VkDeviceSize align, bool host, MemBlock** out_block,
-              VkDeviceSize* out_off, uint8_t** out_cpu);
+              VkDeviceSize* out_off, uint8_t** out_cpu, VkDeviceSize* out_size = nullptr,
+              VkDeviceSize* out_free_off = nullptr);
 void Subfree(MemBlock* block, VkDeviceSize off, VkDeviceSize size);
 // the frame's command buffer opened for recording
 bool BeginFrame();
@@ -215,14 +262,17 @@ struct Upload {
 };
 Upload AllocUpload(VkDeviceSize size, VkDeviceSize align);
 bool MakeBuffer(VkDeviceSize bytes, VkBufferUsageFlags usage, MemBlock** block, VkDeviceSize* off, VkBuffer* buf,
-                bool host);
+                bool host, VkDeviceSize* allocation_size = nullptr, VkDeviceSize* allocation_offset = nullptr);
 bool CreateImage(Image& img, VkFormat fmt, uint32_t w, uint32_t h, uint32_t levels, uint32_t layers, bool cube,
-                 bool depth, bool render_target, VkSampleCountFlagBits samples);
+                 bool depth, bool render_target, VkSampleCountFlagBits samples, uint32_t extent_depth = 1);
 void DestroyImage(Image& img);
 void Transition(Image& img, VkImageLayout want);
 VkRenderPass GetRenderPass(VkFormat color, VkFormat depth, VkSampleCountFlagBits samples, bool clear_color,
                            bool clear_depth);
+void ClearRenderPasses();
 VkFramebuffer GetFramebuffer(Image& color, Image* ds, VkRenderPass pass, uint32_t w, uint32_t h);
+void InvalidateFramebuffers(Image* image);
+void ClearFramebuffers();
 bool ReadBackImage(Image& img, uint32_t w, uint32_t h, std::vector<uint8_t>& out);
 void ReleaseFrameGarbage(Frame& f);
 bool EndWaitReopen();
@@ -234,6 +284,7 @@ bool PresentSwapchain(bool pillarbox);
 struct Shader {
     VkShaderModule module = VK_NULL_HANDLE;
     Reflect reflect;
+    std::vector<uint8_t> spirv;
 };
 bool EnsureShader(uint64_t hash, const std::string& src, const char* entry, VkShaderStageFlagBits stage, Shader& out,
                   bool compile, bool& pending);
@@ -288,7 +339,7 @@ struct Pipeline {
     std::array<VkDescriptorSetLayout, 4> sets{};
     std::vector<ReflectBinding> bindings;  // the merged reflection, what the draw's sets are written from
 };
-// from the map, else built; pending: the build thread will have it
+// from the map, else built; pending: another draw must retry after a failed build
 bool EnsurePipeline(const PsoKey& k, bool wait, Pipeline** out, bool& pending);
 void ClearPipelineMap();  // after a device reset: modules stay, pipelines do not
 VkPipelineLayout PipelineLayoutFrom(const Reflect& vs, const Reflect& ps, std::vector<ReflectBinding>* out = nullptr);

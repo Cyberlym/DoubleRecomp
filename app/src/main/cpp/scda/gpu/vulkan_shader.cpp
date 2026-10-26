@@ -3,11 +3,17 @@
 // come from the SPIR-V's own decorations and variable names: whatever set and binding the HLSL front end assigned, the
 // renderer binds by name (b0 "c", b1 the draw constants, tex0..3, smp0..3, and the blit's img, lut, ls, ps, B, P).
 #include "vulkan_internal.h"
+#include "app/app.h"
 #include "gpu/pipeline_cache.h"
 
+#include <SPIRV/GlslangToSpv.h>
+#include <glslang/Public/ResourceLimits.h>
+#include <glslang/Public/ShaderLang.h>
 #include <shaderc/shaderc.h>
 
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <mutex>
 
 namespace gpu::vk {
@@ -65,9 +71,14 @@ bool ReflectSpirv(const uint8_t* code, size_t bytes, Reflect& out) {
             case spv_OpTypePointer:
                 pointee[w[i + 1]] = w[i + 3];
                 break;
-            case spv_OpVariable:
-                vars[w[i + 2]] = {w[i + 1], w[i + 3], 0, 0};
+            case spv_OpVariable: {
+                // Decorations may precede OpVariable in the module. Preserve the set/binding
+                // already collected instead of resetting them to zero.
+                auto& v = vars[w[i + 2]];
+                v.type = w[i + 1];
+                v.storage = w[i + 3];
                 break;
+            }
             case spv_OpDecorate: {
                 uint32_t dec = w[i + 2];
                 if (dec == spv_DecorationBinding) vars[w[i + 1]].binding = w[i + 3];
@@ -119,6 +130,7 @@ bool ReflectSpirv(const uint8_t* code, size_t bytes, Reflect& out) {
 // the HLSL compiler and its options, made on the first shader
 shaderc_compiler_t g_compiler = nullptr;
 shaderc_compile_options_t g_options = nullptr;
+std::mutex g_shader_compile_lock;
 
 // The HLSL front end assigns every resource binding from its register number in set 0: b0, t0 and s0 all land on
 // binding 0. The renderer binds by the module's own names, so this pass renumbers the decorations deterministically
@@ -129,6 +141,7 @@ bool RewriteBindings(std::vector<uint8_t>& code) {
     uint32_t* w = reinterpret_cast<uint32_t*>(code.data());
     if (w[0] != 0x07230203) return false;
     uint32_t n = uint32_t(code.size() / 4);
+
     struct Use {
         std::string name;
         uint32_t type = 0;
@@ -250,12 +263,17 @@ bool RewriteBindings(std::vector<uint8_t>& code) {
 
 bool CompileHlsl(const std::string& src, const char* entry, shaderc_shader_kind kind, std::vector<uint8_t>& spirv,
                  uint64_t hash) {
+    std::lock_guard compile_lock(g_shader_compile_lock);
+    LOGI("vulkan: shader compile begin hash=%016llx stage=%s source=%zu entry=%s", (unsigned long long)hash,
+         kind == shaderc_glsl_vertex_shader ? "vertex" : "fragment", src.size(), entry);
+    logx::Flush();
     if (!g_compiler) {
         g_compiler = shaderc_compiler_initialize();
         g_options = shaderc_compile_options_initialize();
         shaderc_compile_options_set_source_language(g_options, shaderc_source_language_hlsl);
-        shaderc_compile_options_set_optimization_level(g_options, shaderc_optimization_level_performance);
+        shaderc_compile_options_set_optimization_level(g_options, shaderc_optimization_level_zero);
         shaderc_compile_options_set_target_env(g_options, shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_1);
+        shaderc_compile_options_set_target_spirv(g_options, shaderc_spirv_version_1_3);
         // load-bearing: glslang only emits OpName with debug info on, and both the reflection and
         // the binding rewriter read the resources' names from OpName (the renderer binds by name);
         // without it every module reflects to zero bindings and the blit fails to build
@@ -277,10 +295,91 @@ bool CompileHlsl(const std::string& src, const char* entry, shaderc_shader_kind 
     const char* data = shaderc_result_get_bytes(r);
     size_t size = shaderc_result_get_length(r);
     spirv.assign(data, data + size);
+    if (spirv.size() >= 16) {
+        const uint32_t* w = reinterpret_cast<const uint32_t*>(spirv.data());
+        LOGI("vulkan: shader compile complete hash=%016llx words=%zu version=0x%04x bound=%u", (unsigned long long)hash,
+             spirv.size() / 4, w[1] >> 16, w[3]);
+    } else {
+        LOGE("vulkan: shader compile produced short SPIR-V hash=%016llx bytes=%zu", (unsigned long long)hash,
+             spirv.size());
+        shaderc_result_release(r);
+        return false;
+    }
+    logx::Flush();
     // kept on disk for the next run, as the Windows build kept its bytecode
     ::gpu::cache::AddShader(hash, Hash(src.data(), src.size(), kSourceCheck), spirv.data(), spirv.size());
     shaderc_result_release(r);
     return true;
+}
+
+std::once_flag g_glslang_init;
+
+bool CompileBlitHlsl(const char* src, VkShaderStageFlagBits stage, std::vector<uint8_t>& spirv) {
+    std::call_once(g_glslang_init, [] { glslang::InitializeProcess(); });
+    std::lock_guard compile_lock(g_shader_compile_lock);
+    EShLanguage lang = stage == VK_SHADER_STAGE_VERTEX_BIT ? EShLangVertex : EShLangFragment;
+    glslang::TShader shader(lang);
+    shader.setStrings(&src, 1);
+    shader.setEntryPoint("main");
+    shader.setSourceEntryPoint("main");
+    shader.setEnvInput(glslang::EShSourceHlsl, lang, glslang::EShClientVulkan, 100);
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+    shader.setAutoMapBindings(true);
+    shader.setAutoMapLocations(true);
+    const auto messages = EShMessages(EShMsgSpvRules | EShMsgVulkanRules | EShMsgReadHlsl | EShMsgHlslOffsets);
+    if (!shader.parse(GetDefaultResources(), 100, false, messages)) {
+        LOGE("vulkan: blit %s shader does not compile: %s",
+             stage == VK_SHADER_STAGE_VERTEX_BIT ? "vertex" : "fragment", shader.getInfoLog());
+        return false;
+    }
+    glslang::TProgram program;
+    program.addShader(&shader);
+    if (!program.link(messages) || !program.mapIO()) {
+        LOGE("vulkan: blit shader does not link: %s", program.getInfoLog());
+        return false;
+    }
+    glslang::SpvOptions options;
+    options.disableOptimizer = true;
+    options.generateDebugInfo = false;
+    options.validate = false;
+    std::vector<uint32_t> words;
+    glslang::GlslangToSpv(*program.getIntermediate(lang), words, &options);
+    if (words.empty()) return false;
+    const auto* bytes = reinterpret_cast<const uint8_t*>(words.data());
+    spirv.assign(bytes, bytes + words.size() * sizeof(uint32_t));
+    return true;
+}
+
+void DumpBlitSpirv(const std::vector<uint8_t>& vs, const std::vector<uint8_t>& fs) {
+    static std::once_flag dumped;
+    std::call_once(dumped, [&] {
+        std::filesystem::path dir = app::ExeDir() / "logs";
+        std::error_code ec;
+        std::filesystem::create_directories(dir, ec);
+        for (auto [name, code] : {std::pair{"blit_vs.spv", &vs}, std::pair{"blit_fs.spv", &fs}}) {
+            std::ofstream out(dir / name, std::ios::binary);
+            if (out) out.write(reinterpret_cast<const char*>(code->data()), std::streamsize(code->size()));
+        }
+        auto log_ops = [](const char* name, const std::vector<uint8_t>& code) {
+            if (code.size() < 20 || code.size() % 4) return;
+            const uint32_t* w = reinterpret_cast<const uint32_t*>(code.data());
+            uint32_t n = uint32_t(code.size() / 4);
+            for (uint32_t i = 5; i < n;) {
+                uint32_t op = w[i] & 0xFFFF, len = w[i] >> 16;
+                if (!len || i + len > n) return;
+                if (op == 17 || op == 10 || op == 11) {
+                    const char* text = op == 17 ? nullptr : reinterpret_cast<const char*>(w + i + (op == 11 ? 2 : 1));
+                    if (text) LOGI("vulkan: blit %s op %u: %s", name, op, text);
+                    else if (len > 1) LOGI("vulkan: blit %s OpCapability: %u", name, w[i + 1]);
+                }
+                i += len;
+            }
+        };
+        LOGI("vulkan: dumped blit SPIR-V to %s", dir.string().c_str());
+        log_ops("vs", vs);
+        log_ops("fs", fs);
+    });
 }
 
 // the sources by hash, as d3d12.cpp's shader_src_ kept them: a pipeline's key carries only the hashes
@@ -304,35 +403,53 @@ struct Module {
 std::mutex g_modules_lock;
 std::unordered_map<uint64_t, Module*> g_modules;
 
-// builds one module on a build thread or the render thread
+// Vulkan objects are created on the render thread; shader compilation is still cached on disk
 void BuildModule(Module& m, uint64_t hash) {
+    auto failed = [&] {
+        std::lock_guard lock(m.lock);
+        m.compiling = false;
+    };
     std::vector<uint8_t> spirv;
-    if (!::gpu::cache::FindShader(hash, Hash(m.src.data(), m.src.size(), kSourceCheck), spirv)) {
+    LOGI("vulkan: shader module begin hash=%016llx stage=%s entry=%s", (unsigned long long)hash,
+         m.stage == VK_SHADER_STAGE_VERTEX_BIT ? "vertex" : "fragment", m.entry);
+    logx::Flush();
+    bool cached = ::gpu::cache::FindShader(hash, Hash(m.src.data(), m.src.size(), kSourceCheck), spirv);
+    LOGI("vulkan: shader source %016llx %s", (unsigned long long)hash, cached ? "cache hit" : "cache miss");
+    if (!cached) {
         if (!CompileHlsl(m.src, m.entry, m.stage == VK_SHADER_STAGE_VERTEX_BIT ? shaderc_glsl_vertex_shader
                                                                                : shaderc_glsl_fragment_shader,
                          spirv, hash))
-            return;
+            return failed();
     }
+    LOGI("vulkan: shader rewrite begin hash=%016llx bytes=%zu", (unsigned long long)hash, spirv.size());
     // the front end's own binding numbers collide; the renderer binds by name
     if (!RewriteBindings(spirv)) {
         LOGE("vulkan: shader %016llx could not be rewritten", (unsigned long long)hash);
-        return;
+        return failed();
     }
+    LOGI("vulkan: shader rewrite complete hash=%016llx", (unsigned long long)hash);
     Reflect reflect;
     if (!ReflectSpirv(spirv.data(), spirv.size(), reflect)) {
         LOGE("vulkan: shader %016llx reflection failed", (unsigned long long)hash);
-        return;
+        return failed();
     }
+    LOGI("vulkan: shader reflection complete hash=%016llx bindings=%zu", (unsigned long long)hash,
+         reflect.bindings.size());
     VkShaderModuleCreateInfo ci{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     ci.codeSize = spirv.size();
     ci.pCode = reinterpret_cast<const uint32_t*>(spirv.data());
     VkShaderModule module = VK_NULL_HANDLE;
-    if (!VKCHECK(vkCreateShaderModule(g_ctx.dev, &ci, nullptr, &module))) return;
+    LOGI("vulkan: shader module create begin hash=%016llx entry=%s", (unsigned long long)hash, m.entry);
+    if (!VKCHECK(vkCreateShaderModule(g_ctx.dev, &ci, nullptr, &module))) return failed();
+    LOGI("vulkan: shader module create complete hash=%016llx module=%p", (unsigned long long)hash,
+         reinterpret_cast<void*>(module));
     std::lock_guard lock(m.lock);
     if (m.shader.module) vkDestroyShaderModule(g_ctx.dev, m.shader.module, nullptr);
     m.shader.module = module;
     m.shader.reflect = std::move(reflect);
+    m.shader.spirv = std::move(spirv);
     m.ready = true;
+    m.compiling = false;
 }
 
 Module& FindModule(uint64_t hash, const std::string& src, const char* entry, VkShaderStageFlagBits stage) {
@@ -369,34 +486,41 @@ bool EnsureShaderByHash(uint64_t hash, Shader& out, bool compile, bool& pending)
 
 bool EnsureShader(uint64_t hash, const std::string& src, const char* entry, VkShaderStageFlagBits stage, Shader& out,
                   bool compile, bool& pending) {
+    (void)compile;
     Module& m = FindModule(hash, src, entry, stage);
-    if (m.ready) {
-        out = m.shader;
-        return true;
-    }
     // one builder at a time per module
     bool want = false;
     {
         std::lock_guard lock(m.lock);
+        if (m.ready) {
+            out = m.shader;
+            return true;
+        }
         if (!m.compiling) {
             m.compiling = true;
             want = true;
         }
     }
-    if (want && !compile) {
-        ::gpu::cache::Post([&m, hash] { BuildModule(m, hash); });
-    } else if (want) {
+    if (want) {
+        // Black keeps Vulkan object creation on its render thread; this also avoids Adreno's
+        // driver racing shader modules and render objects from cache workers.
+        LOGI("vulkan: shader build synchronous hash=%016llx", (unsigned long long)hash);
         BuildModule(m, hash);
     }
-    if (m.ready) {
-        out = m.shader;
-        return true;
+    {
+        std::lock_guard lock(m.lock);
+        if (m.ready) {
+            out = m.shader;
+            LOGI("vulkan: shader ready hash=%016llx", (unsigned long long)hash);
+            return true;
+        }
     }
     pending = true;
     return false;
 }
 
 void DestroyShaderCache() {
+    ::gpu::cache::Drain();
     std::lock_guard lock(g_modules_lock);
     for (auto& [hash, m] : g_modules) {
         if (m->shader.module) vkDestroyShaderModule(g_ctx.dev, m->shader.module, nullptr);
@@ -409,9 +533,9 @@ void DestroyShaderCache() {
     g_options = nullptr;
 }
 
-// the full screen passes, the Windows build's kBlitHlsl: the source registers already say set 0 to 2
+// fixed bindings keep this path independent of OpName/reflection and shaderc's HLSL legalization
 const char* kBlitHlslVs = R"(
-cbuffer B : register(b1) { float4 uvrect; float4 opts; };
+[[vk::binding(1, 0)]] cbuffer B : register(b1) { float4 uvrect; float4 opts; };
 struct O { float4 p : SV_Position; float2 uv : TEXCOORD0; };
 O main(uint id : SV_VertexID) {
     O o;
@@ -423,11 +547,11 @@ O main(uint id : SV_VertexID) {
 )";
 
 const char* kBlitHlslPs = R"(
-cbuffer B : register(b1) { float4 uvrect; float4 opts; };
-Texture2D img : register(t0);
-Texture2D lut : register(t1);
-SamplerState ls : register(s0);
-SamplerState ps : register(s1);
+[[vk::binding(1, 0)]] cbuffer B : register(b1) { float4 uvrect; float4 opts; };
+[[vk::binding(4, 0)]] Texture2D img : register(t0);
+[[vk::binding(5, 0)]] Texture2D lut : register(t1);
+[[vk::binding(8, 0)]] SamplerState ls : register(s0);
+[[vk::binding(9, 0)]] SamplerState ps : register(s1);
 struct O { float4 p : SV_Position; float2 uv : TEXCOORD0; };
 float4 main(O i) : SV_Target {
     float4 c = 0;
@@ -446,13 +570,52 @@ float4 main(O i) : SV_Target {
 
 bool EnsureBlitShaders() {
     if (g_blit.layout) return true;
-    bool pending = false;
     uint64_t vhash = Hash(kBlitHlslVs, std::strlen(kBlitHlslVs), 1);
     uint64_t phash = Hash(kBlitHlslPs, std::strlen(kBlitHlslPs), 2);
-    if (!EnsureShader(vhash, kBlitHlslVs, "main", VK_SHADER_STAGE_VERTEX_BIT, g_blit.vs, true, pending)) return false;
-    if (!EnsureShader(phash, kBlitHlslPs, "main", VK_SHADER_STAGE_FRAGMENT_BIT, g_blit.fs, true, pending)) return false;
-    g_blit.layout = PipelineLayoutFull(g_blit.vs.reflect, g_blit.fs.reflect, g_blit.sets, &g_blit.bindings);
-    return g_blit.layout != VK_NULL_HANDLE;
+    auto build = [&](uint64_t hash, const char* src, VkShaderStageFlagBits stage, Shader& out) {
+        std::vector<uint8_t> spirv;
+        uint64_t check = Hash(src, std::strlen(src), kSourceCheck);
+        if (!::gpu::cache::FindShader(hash, check, spirv)) {
+            if (!CompileBlitHlsl(src, stage, spirv)) return false;
+            ::gpu::cache::AddShader(hash, check, spirv.data(), spirv.size());
+        }
+        VkShaderModuleCreateInfo ci{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+        ci.codeSize = spirv.size();
+        ci.pCode = reinterpret_cast<const uint32_t*>(spirv.data());
+        if (!VKCHECK(vkCreateShaderModule(g_ctx.dev, &ci, nullptr, &out.module))) return false;
+        out.spirv = std::move(spirv);
+        return true;
+    };
+    Shader vs, fs;
+    if (!build(vhash, kBlitHlslVs, VK_SHADER_STAGE_VERTEX_BIT, vs) ||
+        !build(phash, kBlitHlslPs, VK_SHADER_STAGE_FRAGMENT_BIT, fs)) {
+        if (vs.module) vkDestroyShaderModule(g_ctx.dev, vs.module, nullptr);
+        if (fs.module) vkDestroyShaderModule(g_ctx.dev, fs.module, nullptr);
+        return false;
+    }
+    DumpBlitSpirv(vs.spirv, fs.spirv);
+    Reflect fixed;
+    fixed.bindings = {
+        {0, 1, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, "B"},
+        {0, 4, 1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, "img"},
+        {0, 5, 1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, "lut"},
+        {0, 8, 1, VK_DESCRIPTOR_TYPE_SAMPLER, "ls"},
+        {0, 9, 1, VK_DESCRIPTOR_TYPE_SAMPLER, "ps"},
+    };
+    std::array<VkDescriptorSetLayout, 4> sets{};
+    std::vector<ReflectBinding> bindings;
+    VkPipelineLayout layout = PipelineLayoutFull(fixed, fixed, sets, &bindings);
+    if (!layout) {
+        vkDestroyShaderModule(g_ctx.dev, vs.module, nullptr);
+        vkDestroyShaderModule(g_ctx.dev, fs.module, nullptr);
+        return false;
+    }
+    g_blit.vs = std::move(vs);
+    g_blit.fs = std::move(fs);
+    g_blit.layout = layout;
+    g_blit.sets = sets;
+    g_blit.bindings = std::move(bindings);
+    return true;
 }
 
 }  // namespace gpu::vk

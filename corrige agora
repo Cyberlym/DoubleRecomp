@@ -1,0 +1,720 @@
+Estágio do boot: first_frame_presented
+
+[    0.175] [info] [t46f0] shell: SCDA Port 0.2.6 host starting, log /storage/emulated/0/Android/data/com.tgp482.scda_port/files/logs/scda_001.log
+[    0.215] [info] [t46f0] input: SDL 3.4.18
+[    0.215] [info] [t46f0] Android device, SDL 3.4.18
+[    0.215] [info] [t46f0] Display: 1600x720 120 Hz
+[    0.217] [info] [t46f0] Settings:
+[    0.217] [info] [t46f0]   ambient_occlusion = 0
+[    0.217] [info] [t46f0]   anisotropic_filtering = 0
+[    0.217] [info] [t46f0]   async_shaders = true
+[    0.217] [info] [t46f0]   audio_output = 0
+[    0.217] [info] [t46f0]   brightness = 50
+[    0.217] [info] [t46f0]   contrast = 50
+[    0.217] [info] [t46f0]   coop_input_delay_floor_ms = 20
+[    0.217] [info] [t46f0]   coop_tick_rate = 60
+[    0.217] [info] [t46f0]   display_mode = 'borderless'
+[    0.217] [info] [t46f0]   fmv_scale = 0
+[    0.217] [info] [t46f0]   fov = 75
+[    0.217] [info] [t46f0]   fps_cap = 60
+[    0.217] [info] [t46f0]   fps_counter = false
+[    0.217] [info] [t46f0]   free_look_sensitivity = 1.0
+[    0.217] [info] [t46f0]   hdr_output = true
+[    0.217] [info] [t46f0]   hdr_rendering = false
+[    0.217] [info] [t46f0]   height = 0
+[    0.217] [info] [t46f0]   invert_mouse = false
+[    0.217] [info] [t46f0]   join_ip = ''
+[    0.217] [info] [t46f0]   language = 'auto'
+[    0.217] [info] [t46f0]   microphone = ''
+[    0.217] [info] [t46f0]   monitor = ''
+[    0.217] [info] [t46f0]   mouse_sensitivity = 1.0
+[    0.217] [info] [t46f0]   msaa = 0
+[    0.217] [info] [t46f0]   pause_on_focus_loss = true
+[    0.217] [info] [t46f0]   player1 = 'keyboard+controller1'
+[    0.217] [info] [t46f0]   player2 = 'controller2'
+[    0.217] [info] [t46f0]   push_to_talk = false
+[    0.217] [info] [t46f0]   render_percent = 100
+[    0.217] [info] [t46f0]   shader_model = 1
+[    0.217] [info] [t46f0]   shadow_distance = 1
+[    0.217] [info] [t46f0]   shadow_filter = 1
+[    0.217] [info] [t46f0]   shadow_resolution = 512
+[    0.217] [info] [t46f0]   skip_intros = false
+[    0.217] [info] [t46f0]   smaa = false
+[    0.217] [info] [t46f0]   sniper_sensitivity = 1.0
+[    0.217] [info] [t46f0]   tone_mapping = false
+[    0.217] [info] [t46f0]   vsync = true
+[    0.217] [info] [t46f0]   weapon_sensitivity = 1.0
+[    0.217] [info] [t46f0]   width = 0
+[    0.217] [info] [t46f0]   [controller]
+[    0.217] [info] [t46f0]   [keys]
+[    0.217] [info] [t46f0] boot stage: runtime_init
+[    0.327] [info] [t46f0] Game: default.xbe in /storage/emulated/0/Android/data/com.tgp482.scda_port/files/game/SplinterCell-DA/SplinterCell-DA.iso, sha1 91290baf93c2f6ae735a3106c48734665c826d84
+[    0.327] [info] [t46f0] boot stage: iso_open
+[    0.327] [info] [t46f0] boot stage: xbe_loaded
+[    0.327] [info] [t46f0] game code: default.xbe compiled in (AOT), sha1 91290baf93c2f6ae735a3106c48734665c826d84
+[    0.327] [info] [t46f0] memory: guest space at 0x100000000
+[    0.327] [info] [t46f0] boot: title 5553005E, entry 00054775, 34 sections
+[    0.327] [info] [t46f0] boot: library XAPILIB  1.0.5849
+[    0.327] [info] [t46f0] boot: library XONLINES 1.0.5849
+[    0.327] [info] [t46f0] boot: library XVOICE   1.0.5849
+[    0.327] [info] [t46f0] boot: library D3D8     1.0.5849
+[    0.327] [info] [t46f0] boot: library D3DX8    1.0.5849
+[    0.327] [info] [t46f0] boot: library XGRAPHC  1.0.5849
+[    0.327] [info] [t46f0] boot: library XBOXKRNL 1.0.5849
+[    0.327] [info] [t46f0] boot: library LIBCMT   1.0.5849
+[    0.327] [info] [t46f0] boot: library LIBCPMT  1.0.5849
+[    0.327] [info] [t46f0] boot: library VOICMAIL 1.0.5849
+[    0.327] [info] [t46f0] boot: library DSOUND   1.0.5849
+[    0.346] [info] [t46f0] dispatch: 33172 functions over 00011000..004F5150
+[    0.346] [info] [t46f0] boot: kernel imports resolved, 0 missing
+[    0.347] [info] [t46f0] files: D: is /storage/emulated/0/Android/data/com.tgp482.scda_port/files/game/SplinterCell-DA/SplinterCell-DA.iso, hard disk under /storage/emulated/0/Android/data/com.tgp482.scda_port/files/data
+[    0.347] [info] [t46f0] boot stage: game_entry
+[    0.348] [info] [t96f0] thread 10 starts at 00054775 (00054775, 00000000)
+[    0.356] [info] [t96f0] thread 10 returned 00000001
+[    0.356] [info] [t36f0] thread 14 starts at 000524DA (00054701, 00000000)
+[    0.358] [info] [t36f0] ExQueryNonVolatileSetting 11 -> 0
+[    0.359] [info] [t36f0] files: link \??\D: -> \Device\CdRom0
+[    0.361] [info] [t36f0] files: link \??\T: -> \Device\Harddisk0\partition1\TDATA\5553005e
+[    0.362] [info] [t36f0] open \Device\Harddisk0\partition1\UDATA\5553005e\TitleMeta.xbx
+[    0.362] [info] [t36f0] open \Device\Harddisk0\partition1\UDATA\5553005e\TitleImage.xbx
+[    0.362] [info] [t36f0] XeLoadSection $$XTIMAGE at 006C89E0
+[    0.363] [info] [t36f0] open \Device\Harddisk0\partition1\UDATA\5553005e\SaveImage.xbx
+[    0.363] [info] [t36f0] XeLoadSection $$XSIMAGE at 006CB1E0
+[    0.363] [info] [t36f0] files: link \??\U: -> \Device\Harddisk0\partition1\UDATA\5553005e
+[    0.363] [info] [t36f0] files: link \??\Z: -> \Device\Harddisk0\Partition5
+[    0.363] [info] [t36f0] ExQueryNonVolatileSetting A -> 0
+[    0.364] [info] [t36f0] missing t:\$u\contentmeta.xbx
+[    0.497] [warn] [t36f0] xnet: no networking in this Android build, the game stays offline
+[    0.502] [info] [t36f0] missing z:\Default\DynamicXbox.umd
+[    0.502] [info] [t36f0] missing z:\Default\DynamicXbox.umd
+[    0.503] [info] [t36f0] missing D:\Default\Default\DynamicXbox.umd
+[    0.503] [info] [t36f0] open d:\Default\DynamicXbox.umd
+[    0.504] [info] [t36f0] open z:\Default\DynamicXbox.umd
+[    0.520] [info] [t36f0] missing D:\Default\Default\DynamicXbox.umd
+[    0.520] [info] [t36f0] open z:\Default\DynamicXbox.umd
+[    0.532] [info] [t36f0] ExQueryNonVolatileSetting 7 -> 1
+[    0.533] [info] [t36f0] ExQueryNonVolatileSetting 103 -> 400100
+[    0.533] [info] [t36f0] open d:\Default\DataXb\Sounds\Stream.SS2
+[    0.534] [info] [t36f0] open d:\Default\DataXb\Sounds\Fol_Common.SS2
+[    0.534] [info] [t36f0] open d:\Default\DataXb\Sounds\int\Stream.LS2
+[    0.534] [info] [t36f0] open d:\Default\DataXb\Sounds\int\SCX_Barks_Usa.LS2
+[    0.534] [info] [t36f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Spanish.LS2
+[    0.534] [info] [t36f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Korean.LS2
+[    0.534] [info] [t36f0] missing d:\Default\DataXb\Sounds\int\SCX_Barks_Japan.LS2
+[    0.536] [info] [t36f0] missing D:\Default\DataXb\Maps\
+[    0.552] [info] [t36f0] missing T:\$C\
+[    0.554] [info] [t36f0] open D:\Default\DataXb\LMaps\common.lin
+[    0.557] [info] [t36f0] open D:\Default\
+[    0.557] [info] [t36f0] open D:\Default\splintercell4xboxretail.umd
+[    0.559] [info] [t36f0] missing D:\Default\SplinterCell4Xbox.ini
+[    0.559] [info] [t36f0] missing T:\SplinterCell4Xbox.ini
+[    0.559] [info] [t36f0] missing D:\Default\SplinterCell4Xbox.ini
+[    0.559] [info] [t36f0] missing D:\Default\SplinterCell4User.ini
+[    0.559] [info] [t36f0] missing T:\SplinterCell4User.ini
+[    0.559] [info] [t36f0] missing D:\Default\SplinterCell4User.ini
+[    0.589] [info] [t36f0] open D:\Default\DataXb\LMaps\Menu\Menu.lin
+[    0.601] [info] [t36f0] missing D:\Default\721d7c6e
+[    0.601] [info] [t36f0] missing T:\721d7c6e
+[    0.601] [info] [t36f0] missing D:\Default\721d7c6e
+[    0.601] [info] [t36f0] ExQueryNonVolatileSetting 8 -> 90000
+[    0.601] [info] [t36f0] ExQueryNonVolatileSetting 103 -> 400100
+[    0.601] [info] [t36f0] d3d: CreateDevice 640x480 format 12 buffers 1 depth 1 format 2E interval 80000002 flags 150
+[    0.603] [info] [t36f0] BUILD-MARK blit-glslang-fixed-0.2.6 Oct 26 2026 02:54:41
+[    0.681] [info] [t36f0] vulkan: device Adreno (TM) 619, Vulkan 1.1, driver 0.530.0
+[    0.681] [info] [t36f0] vulkan: features samplerAnisotropy=1 fillModeNonSolid=1
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_incremental_present
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_shared_presentable_image
+[    0.682] [info] [t36f0] vulkan: device extension VK_GOOGLE_display_timing
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_swapchain_maintenance1
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_subgroup_size_control
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_external_memory
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_pipeline_creation_feedback
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_shader_float16_int8
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_get_memory_requirements2
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_spirv_1_4
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_external_semaphore_fd
+[    0.682] [info] [t36f0] vulkan: device extension VK_QCOM_render_pass_store_ops
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_external_memory_fd
+[    0.682] [info] [t36f0] vulkan: device extension VK_QCOM_render_pass_shader_resolve
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_maintenance1
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_maintenance2
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_maintenance3
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_separate_depth_stencil_layouts
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_image_robustness
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_buffer_device_address
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_queue_family_foreign
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_bind_memory2
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_external_semaphore
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_scalar_block_layout
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_sampler_ycbcr_conversion
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_vertex_attribute_divisor
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_variable_pointers
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_push_descriptor
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_device_memory_report
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_imageless_framebuffer
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_device_group
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_relaxed_block_layout
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_external_fence
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_host_query_reset
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_index_type_uint8
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_multiview
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_storage_buffer_storage_class
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_shader_subgroup_extended_types
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_private_data
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_pipeline_creation_cache_control
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_separate_stencil_usage
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_image_format_list
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_sampler_filter_minmax
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_shader_demote_to_helper_invocation
+[    0.682] [info] [t36f0] vulkan: device extension VK_QCOM_render_pass_transform
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_create_renderpass2
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_blend_operation_advanced
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_shader_float_controls
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_texture_compression_astc_hdr
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_global_priority
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_shader_draw_parameters
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_vulkan_memory_model
+[    0.682] [info] [t36f0] vulkan: device extension VK_EXT_line_rasterization
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_descriptor_update_template
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_draw_indirect_count
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_driver_properties
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_uniform_buffer_standard_layout
+[    0.682] [info] [t36f0] vulkan: device extension VK_ANDROID_external_memory_android_hardware_buffer
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_dedicated_allocation
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_swapchain
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_sampler_mirror_clamp_to_edge
+[    0.682] [info] [t36f0] vulkan: device extension VK_KHR_external_fence_fd
+[    0.760] [info] [t36f0] vulkan: device ready, depth 129, BC 000, aniso 16, nonSolid 1
+[    0.760] [info] [t36f0] vulkan: surface caps extent 1600x720, transform 2, supportedTransforms 0x1ff
+[    0.781] [info] [t36f0] vulkan: swapchain 1600x720, 4 images, format 37, present 2
+[    0.781] [info] [t36f0] shader cache: 0 shaders, 0.0 MB
+[    0.782] [info] [t36f0] pipeline keys: 0 from default.xbe_pipeline_keys.bin
+[    0.832] [info] [t36f0] vulkan: dumped blit SPIR-V to /storage/emulated/0/Android/data/com.tgp482.scda_port/files/logs
+[    0.832] [info] [t36f0] vulkan: blit vs OpCapability: 1
+[    0.832] [info] [t36f0] vulkan: blit vs op 11: GLSL.std.450
+[    0.832] [info] [t36f0] vulkan: blit fs OpCapability: 1
+[    0.832] [info] [t36f0] vulkan: blit fs op 11: GLSL.std.450
+[    0.868] [info] [t36f0] vulkan: 640x480 guest, 1600x720 window, render scale 1.500
+[    0.869] [info] [t46f0] boot stage: vulkan_ready
+[    0.870] [info] [t36f0] shadows: map 00935000, edge blur 00935000-0098A400
+[    0.870] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D54E0 out=008C326C
+[    0.870] [info] [t36f0] d3d: vertex shader B0000C61, 5 decl tokens, 17 instructions, type 2078
+[    0.870] [info] [t36f0] d3d: CreateVertexShader complete handle=B0000C61
+[    0.870] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D5378 out=008C32A4
+[    0.870] [info] [t36f0] d3d: vertex shader B0000C71, 5 decl tokens, 22 instructions, type 2078
+[    0.870] [info] [t36f0] d3d: CreateVertexShader complete handle=B0000C71
+[    0.870] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D5170 out=008C32DC
+[    0.870] [info] [t36f0] d3d: vertex shader B0100C81, 5 decl tokens, 32 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100C81
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D5018 out=008C3314
+[    0.871] [info] [t36f0] d3d: vertex shader B0100C91, 5 decl tokens, 21 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100C91
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D4E10 out=008C334C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100CA1, 5 decl tokens, 32 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100CA1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D4BD8 out=008C3384
+[    0.871] [info] [t36f0] d3d: vertex shader B0100CB1, 5 decl tokens, 35 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100CB1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D4A70 out=008C33BC
+[    0.871] [info] [t36f0] d3d: vertex shader B0100CC1, 5 decl tokens, 22 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100CC1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D47D8 out=008C33F4
+[    0.871] [info] [t36f0] d3d: vertex shader B0100CD1, 5 decl tokens, 41 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100CD1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D46A0 out=008C342C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100CE1, 5 decl tokens, 19 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100CE1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D4588 out=008C3464
+[    0.871] [info] [t36f0] d3d: vertex shader B0100CF1, 5 decl tokens, 17 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100CF1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005D4480 out=008C349C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D01, 5 decl tokens, 16 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D01
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CC9A8 out=008C4264
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D11, 5 decl tokens, 12 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D11
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CF8B8 out=008C3AF4
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D21, 5 decl tokens, 14 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D21
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CFCF0 out=008C39DC
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D31, 5 decl tokens, 13 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D31
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CFB50 out=008C3A4C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D41, 5 decl tokens, 12 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D41
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CFA98 out=008C3A84
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D51, 5 decl tokens, 11 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D51
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CB260 out=008C445C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D61, 5 decl tokens, 8 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D61
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CFF18 out=008C3934
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D71, 5 decl tokens, 5 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D71
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CC8C0 out=008C429C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D81, 5 decl tokens, 14 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D81
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CA630 out=008C461C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100D91, 5 decl tokens, 9 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100D91
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CAD08 out=008C4574
+[    0.871] [info] [t36f0] d3d: vertex shader B0100DA1, 5 decl tokens, 19 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100DA1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CA478 out=008C4654
+[    0.871] [info] [t36f0] d3d: vertex shader B0100DB1, 5 decl tokens, 27 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100DB1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CA320 out=008C468C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100DC1, 5 decl tokens, 21 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100DC1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005CA208 out=008C46C4
+[    0.871] [info] [t36f0] d3d: vertex shader B0100DD1, 5 decl tokens, 17 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100DD1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E24 func=005C9B20 out=008C484C
+[    0.871] [info] [t36f0] d3d: vertex shader B0100DE1, 5 decl tokens, 12 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100DE1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CECE0 out=008C3DD0
+[    0.871] [info] [t36f0] d3d: vertex shader B0100DF1, 7 decl tokens, 22 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100DF1
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CEB58 out=008C3E08
+[    0.871] [info] [t36f0] d3d: vertex shader B0100E01, 7 decl tokens, 24 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E01
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CE990 out=008C3E40
+[    0.871] [info] [t36f0] d3d: vertex shader B0100E11, 7 decl tokens, 28 instructions, type 2078
+[    0.871] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E11
+[    0.871] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CE718 out=008C3E78
+[    0.871] [info] [t36f0] d3d: vertex shader B0100E21, 7 decl tokens, 39 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E21
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CE570 out=008C3EB0
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E31, 7 decl tokens, 26 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E31
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CE318 out=008C3EE8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E41, 7 decl tokens, 37 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E41
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CE090 out=008C3F20
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E51, 7 decl tokens, 40 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E51
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CDEE8 out=008C3F58
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E61, 7 decl tokens, 26 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E61
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CDC50 out=008C3F90
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E71, 7 decl tokens, 41 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E71
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CDAF8 out=008C3FC8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E81, 7 decl tokens, 21 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E81
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CD980 out=008C4000
+[    0.872] [info] [t36f0] d3d: vertex shader B0100E91, 7 decl tokens, 23 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100E91
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CD7E8 out=008C4038
+[    0.872] [info] [t36f0] d3d: vertex shader B0100EA1, 7 decl tokens, 25 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100EA1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CD6D0 out=008C4070
+[    0.872] [info] [t36f0] d3d: vertex shader B0100EB1, 7 decl tokens, 17 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100EB1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CD5C8 out=008C40A8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100EC1, 7 decl tokens, 16 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100EC1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CD4A0 out=008C40E0
+[    0.872] [info] [t36f0] d3d: vertex shader B0100ED1, 7 decl tokens, 18 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100ED1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CC9A8 out=008C4268
+[    0.872] [info] [t36f0] d3d: vertex shader B0100EE1, 7 decl tokens, 12 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100EE1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CF8B8 out=008C3AF8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100EF1, 7 decl tokens, 14 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100EF1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CB2E8 out=008C4428
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F01, 7 decl tokens, 14 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F01
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CFCF0 out=008C39E0
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F11, 7 decl tokens, 13 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F11
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CFA98 out=008C3A88
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F21, 7 decl tokens, 11 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F21
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CB260 out=008C4460
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F31, 7 decl tokens, 8 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F31
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CC3D8 out=008C42D8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F41, 7 decl tokens, 78 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F41
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CB940 out=008C4380
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F51, 7 decl tokens, 74 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F51
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CA630 out=008C4620
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F61, 7 decl tokens, 9 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F61
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CFF18 out=008C3938
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F71, 7 decl tokens, 5 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F71
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CAD08 out=008C4578
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F81, 7 decl tokens, 19 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F81
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CA478 out=008C4658
+[    0.872] [info] [t36f0] d3d: vertex shader B0100F91, 7 decl tokens, 27 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100F91
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005CA160 out=008C4700
+[    0.872] [info] [t36f0] d3d: vertex shader B0100FA1, 7 decl tokens, 10 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100FA1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005C9FB8 out=008C4738
+[    0.872] [info] [t36f0] d3d: vertex shader B0100FB1, 7 decl tokens, 26 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100FB1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005C9DD0 out=008C47E0
+[    0.872] [info] [t36f0] d3d: vertex shader B0100FC1, 7 decl tokens, 12 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100FC1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569E08 func=005C9878 out=008C48F8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100FD1, 7 decl tokens, 20 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100FD1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D18 func=005C9E98 out=008C47D8
+[    0.872] [info] [t36f0] d3d: vertex shader B0100FE1, 6 decl tokens, 8 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100FE1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CFC18 out=008C3A20
+[    0.872] [info] [t36f0] d3d: vertex shader B0100FF1, 9 decl tokens, 13 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0100FF1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CD3B8 out=008C4120
+[    0.872] [info] [t36f0] d3d: vertex shader B0101001, 9 decl tokens, 14 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101001
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CD240 out=008C4158
+[    0.872] [info] [t36f0] d3d: vertex shader B0101011, 9 decl tokens, 23 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101011
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CD038 out=008C4190
+[    0.872] [info] [t36f0] d3d: vertex shader B0101021, 9 decl tokens, 32 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101021
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CCDA0 out=008C41C8
+[    0.872] [info] [t36f0] d3d: vertex shader B0101031, 9 decl tokens, 41 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101031
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CCC18 out=008C4200
+[    0.872] [info] [t36f0] d3d: vertex shader B0101041, 9 decl tokens, 24 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101041
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CCA70 out=008C4238
+[    0.872] [info] [t36f0] d3d: vertex shader B0101051, 9 decl tokens, 26 instructions, type 2078
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101051
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CBF00 out=008C4318
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101061
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CBDE8 out=008C4350
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101071
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CB4A8 out=008C43C0
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101081
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CB3D0 out=008C43F8
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101091
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CAE40 out=008C4548
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01010A1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DC0 func=005CAF18 out=008C4510
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01010B1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D4130 out=008C3514
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01010C1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D3A78 out=008C354C
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01010D1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D3710 out=008C3584
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01010E1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D2FE8 out=008C35BC
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01010F1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D2B90 out=008C35F4
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101101
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D2838 out=008C362C
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101111
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D2380 out=008C3664
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101121
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D20A8 out=008C369C
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101131
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D1E90 out=008C36D4
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101141
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D1C88 out=008C370C
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101151
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D19A0 out=008C3744
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101161
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D1510 out=008C37B4
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101171
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D12A8 out=008C37EC
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101181
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005CAFF0 out=008C44D4
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101191
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D0780 out=008C3894
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01011A1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D0158 out=008C38CC
+[    0.872] [info] [t36f0] d3d: CreateVertexShader complete handle=B01011B1
+[    0.872] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D0DE8 out=008C385C
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01011C1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D1090 out=008C3824
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01011D1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005D1778 out=008C377C
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01011E1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005CFF70 out=008C3904
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01011F1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DE4 func=005C9BE8 out=008C481C
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101201
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF9A0 out=008C3AD0
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101211
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF738 out=008C3B78
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101221
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF690 out=008C3BB0
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101231
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF628 out=008C3BE8
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101241
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF7A0 out=008C3B40
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101251
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF5A0 out=008C3C20
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101261
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CFE40 out=008C3980
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101271
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF348 out=008C3CC8
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101281
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005CF2B0 out=008C3D00
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101291
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005C9F20 out=008C4780
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01012A1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005C9A58 out=008C4898
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01012B1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005C99C0 out=008C48D0
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01012C1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DA4 func=005C9820 out=008C4940
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01012D1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569DB0 func=005CF538 out=008C3C54
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01012E1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D98 func=005CA8D0 out=008C45C4
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01012F1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D98 func=005CA6C8 out=008C45FC
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101301
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D78 func=005CFCF0 out=008C39F8
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101311
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D78 func=005CFC18 out=008C3A30
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101321
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D78 func=005CF198 out=008C3D40
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101331
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D78 func=005CEE48 out=008C3DB0
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101341
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D78 func=005CEF40 out=008C3D78
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101351
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D64 func=005CFCF0 out=008C39FC
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101361
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D64 func=005CFC18 out=008C3A34
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101371
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D64 func=005CF198 out=008C3D44
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101381
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D64 func=005CEE48 out=008C3DB4
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B0101391
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D50 func=005CFCF0 out=008C3A00
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01013A1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D50 func=005CF430 out=008C3CA0
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01013B1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D50 func=005D43F8 out=008C34F8
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01013C1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D40 func=005CFDC8 out=008C39CC
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01013D1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D50 func=005CFC18 out=008C3A40
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01013E1
+[    0.873] [info] [t36f0] d3d: CreateVertexShader begin decl=00569D30 func=005CFCF0 out=008C3A0C
+[    0.873] [info] [t36f0] d3d: CreateVertexShader complete handle=B01013F1
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DACF0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101400
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DAC00 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101410
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DAB10 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101420
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DAA20 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101430
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA930 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101440
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA840 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101450
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA750 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101460
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA660 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101470
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA570 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101480
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA480 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101490
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA390 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01014A0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA2A0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01014B0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA1B0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01014C0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005DA0C0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01014D0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9FD0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01014E0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9EE0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01014F0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9DF0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101500
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9D00 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101510
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9C10 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101520
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9B20 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101530
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9A30 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101540
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9940 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101550
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9850 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101560
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9760 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101570
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9670 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101580
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9580 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101590
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D9490 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01015A0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D93A0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01015B0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D92B0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01015C0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D91C0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01015D0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D90D0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01015E0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D8FE0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B01015F0
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D8EF0 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101600
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D8E00 out=D00BB738
+[    0.873] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101610
+[    0.873] [info] [t36f0] d3d: CreatePixelShader begin def=005D8D10 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101620
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8C20 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101630
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8B30 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101640
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8A40 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101650
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8950 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101660
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8860 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101670
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8770 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101680
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8680 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101690
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D8590 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01016A0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D84A0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01016B0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D83B0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01016C0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D82C0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01016D0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D81D0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01016E0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D80E0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01016F0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7FF0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101700
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7F00 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101710
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7E10 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101720
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7D20 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101730
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7C30 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101740
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7B40 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101750
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7A50 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101760
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7960 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101770
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7870 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101780
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7780 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101790
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7690 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01017A0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D75A0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01017B0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D74B0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01017C0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D73C0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01017D0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D72D0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01017E0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D71E0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01017F0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D70F0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101800
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D7000 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101810
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6F10 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101820
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6E20 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101830
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6D30 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101840
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6C40 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101850
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6B50 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101860
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6A60 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101870
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6970 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101880
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6880 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101890
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6790 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01018A0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D66A0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01018B0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D65B0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01018C0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D64C0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01018D0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D63D0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01018E0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D62E0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01018F0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D61F0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101900
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6100 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101910
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D6010 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101920
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5F20 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101930
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5E30 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101940
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5D40 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101950
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5C50 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101960
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5B60 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101970
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5A70 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101980
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5980 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B0101990
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D5890 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01019A0
+[    0.874] [info] [t36f0] d3d: CreatePixelShader begin def=005D57A0 out=D00BB738
+[    0.874] [info] [t36f0] d3d: CreatePixelShader complete handle=B01019B0
+[    0.880] [info] [tb6f0] vulkan: first present begin surface=b0000c80 pillarbox=0
+[    0.880] [info] [tb6f0] vulkan: vkAcquireNextImageKHR returned VK_SUCCESS (0) present=0
+[    0.881] [info] [tb6f0] vulkan: blit pipeline begin format=37 over=0
+[    0.881] [info] [tb6f0] vulkan: blit shader setup complete vs=0xb400007367f6f900 fs=0xb400007367f6fa00 layout=0xb4000073668a4480
+[    0.962] [info] [tb6f0] vulkan: blit pipeline create returned VK_SUCCESS (0) format=37 over=0
+[    0.963] [info] [tb6f0] vulkan: blit pipeline complete format=37 over=0 pipe=0xb4000073680bd000
+[    0.963] [info] [tb6f0] vulkan: vkQueueSubmit begin fence=1 wait=1 signal=1
+[    0.965] [info] [tb6f0] vulkan: vkQueueSubmit returned VK_SUCCESS (0) fence=1
+[    0.967] [info] [tb6f0] vulkan: vkQueuePresentKHR returned VK_SUCCESS (0) present=0 image=0
+[    0.967] [info] [tb6f0] vulkan: first present complete presents=1
+[    0.968] [info] [tb6f0] vulkan: blit pipeline begin format=44 over=0
+[    0.968] [info] [tb6f0] vulkan: blit shader setup complete vs=0xb400007367f6f900 fs=0xb400007367f6fa00 layout=0xb4000073668a4480
+[    0.969] [info] [t46f0] boot stage: first_frame_presented
+[    0.971] [info] [t36f0] open D:\Default\
+[    0.971] [info] [t36f0] ExQueryNonVolatileSetting 103 -> 400100
+[    0.971] [info] [t36f0] files: video open begin D:\Default\DataXb\Videos\ dir=1
+[    0.971] [info] [t36f0] open D:\Default\DataXb\Videos\
+[    0.971] [info] [t36f0] files: video open complete D:\Default\DataXb\Videos\ handle=0000105C dir=1
+[    0.971] [info] [t36f0] files: video directory query begin path=D:\Default\DataXb\Videos handle=0000105C len=328 class=1 restart=0
+[    0.972] [info] [t36f0] files: video directory enumerated path=D:\Default\DataXb\Videos pattern=logos.bik disc=1 entries=1
+[    0.972] [info] [t36f0] files: video directory entry path=D:\Default\DataXb\Videos name=logos.bik index=0
+[    0.983] [info] [tb6f0] vulkan: blit pipeline create returned VK_SUCCESS (0) format=44 over=0
+[    0.983] [info] [tb6f0] vulkan: blit pipeline complete format=44 over=0 pipe=0xb400007368143000
+[    0.983] [info] [tb6f0] vulkan: vkAcquireNextImageKHR returned VK_SUCCESS (0) present=1
+[    0.983] [info] [tb6f0] vulkan: vkQueueSubmit begin fence=2 wait=1 signal=1
+[    0.983] [info] [tb6f0] vulkan: vkQueueSubmit returned VK_SUCCESS (0) fence=2
+[    0.984] [info] [tb6f0] vulkan: vkQueuePresentKHR returned VK_SUCCESS (0) present=1 image=1
+[    0.984] [info] [tb6f0] vulkan: vkQueueSubmit begin fence=3 wait=0 signal=0
+[    0.985] [info] [tb6f0] vulkan: vkQueueSubmit returned VK_SUCCESS (0) fence=3

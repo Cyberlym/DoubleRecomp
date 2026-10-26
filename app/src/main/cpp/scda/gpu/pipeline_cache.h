@@ -3,7 +3,7 @@
 #include <functional>
 #include <vector>
 
-// Shaders and pipelines kept on disk between runs, and the threads that build new ones away from the render thread.
+// Shaders and pipelines kept on disk between runs, with cache persistence kept separate from the render thread.
 // Every mission is a new process and the title's shaders are made from draw time state, so what this device has built
 // before is all there is to keep. The Vulkan build: SPIR-V by source hash, pipelines by description hash.
 namespace gpu::cache {
@@ -22,12 +22,14 @@ void StorePipeline(uint64_t name, const void* key, size_t bytes);
 // each frame: the library is written a few seconds after the last new pipeline
 void SaveWhenIdle();
 
-// the pipelines this executable drew before, as the backend described them, so a new start builds them before they
-// are drawn; Take hands over those read at Open, once
+// pipeline descriptions recorded by earlier runs; a backend may consume these on its render thread
 std::vector<std::vector<uint8_t>> TakePipelineKeys();
 void AddPipelineKey(const void* key, size_t size);
 
-// runs job on a build thread; ahead: before the jobs already waiting
+// runs a cache job on a worker; ahead: before the jobs already waiting
 void Post(std::function<void()> job, bool ahead = false);
+
+// waits until all jobs queued before this call have finished
+void Drain();
 
 }  // namespace gpu::cache

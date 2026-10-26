@@ -26,6 +26,8 @@ std::string Upper(std::string s) {
     return s;
 }
 
+bool IsVideoPath(const std::string& path) { return Upper(path).find("\\VIDEOS") != std::string::npos; }
+
 std::string Normalize(std::string p) {
     std::replace(p.begin(), p.end(), '/', '\\');
     std::string out;
@@ -226,7 +228,9 @@ struct Target {
 
 Target Resolve(const std::string& xbox_path, uint32_t root_handle) {
     std::string p = Normalize(xbox_path);
-    if (root_handle) {
+    bool absolute = !p.empty() && p[0] == '\\';
+    if (p.size() >= 2 && p[1] == ':') absolute = true;
+    if (root_handle && !absolute) {
         if (auto f = FileFromHandle(root_handle)) p = Normalize(f->xbox + "\\" + p);
     }
     if (p.size() >= 2 && p[1] == ':') p = "\\??\\" + p;
@@ -269,6 +273,7 @@ Target Resolve(const std::string& xbox_path, uint32_t root_handle) {
 // the disc image is read only: nothing on it is created, replaced or written
 uint32_t OpenOnDisc(const Disc::Entry* e, const std::string& name, uint32_t handle_out, uint32_t iosb, uint32_t disposition,
                     uint32_t options) {
+    if (IsVideoPath(name)) LOGI("files: video open begin %s dir=%u", name.c_str(), e && e->dir ? 1 : 0);
     if (!e && (disposition == 1 || disposition == 4)) {  // FILE_OPEN or FILE_OVERWRITE need an existing file
         LOG_FIRST(200, "missing %s", name.c_str());
         IoStatus(iosb, kObjectNameNotFound, 5);
@@ -289,6 +294,10 @@ uint32_t OpenOnDisc(const Disc::Entry* e, const std::string& name, uint32_t hand
     W32(handle_out, NewHandle(f));
     IoStatus(iosb, kSuccess, 1);
     LOG_FIRST(400, "open %s", name.c_str());
+    if (IsVideoPath(name)) {
+        LOGI("files: video open complete %s handle=%08X dir=%u", name.c_str(), R32(handle_out), e->dir ? 1 : 0);
+        logx::Flush();
+    }
     return kSuccess;
 }
 
@@ -443,6 +452,12 @@ KERNEL_EXPORT(219, NtReadFile, 8) {
     uint32_t h = a[0], event = a[1], apc = a[2], apc_ctx = a[3], iosb = a[4], buf = a[5], len = a[6], off = a[7];
     auto f = FileFromHandle(h);
     if (!f || (!f->fp && !f->entry)) return kInvalidHandle;
+    const bool video = f && IsVideoPath(f->xbox);
+    if (video) {
+        LOGI("files: video read begin path=%s handle=%08X pos=%u len=%u disc=%u", f->xbox.c_str(), h, off ? uint32_t(R64(off)) : f->pos,
+             len, f->entry ? 1 : 0);
+        logx::Flush();
+    }
     uint64_t pos = f->pos;
     if (off) {
         int64_t o = int64_t(R64(off));
@@ -457,12 +472,14 @@ KERNEL_EXPORT(219, NtReadFile, 8) {
     }
     f->pos = pos + n;
     if (len && !n) {
+        if (video) LOGI("files: video read eof path=%s pos=%llu len=%u", f->xbox.c_str(), (unsigned long long)pos, len);
         IoStatus(iosb, kEndOfFile, 0);
         Complete(event, apc, apc_ctx, iosb);
         return kEndOfFile;
     }
     IoStatus(iosb, kSuccess, uint32_t(n));
     Complete(event, apc, apc_ctx, iosb);
+    if (video) LOGI("files: video read complete path=%s bytes=%zu", f->xbox.c_str(), n);
     return kSuccess;
 }
 
@@ -610,6 +627,12 @@ KERNEL_EXPORT(207, NtQueryDirectoryFile, 10) {
              mask = a[8], restart = a[9];
     auto f = FileFromHandle(h);
     if (!f || !f->dir) return kInvalidHandle;
+    const bool video = f && IsVideoPath(f->xbox);
+    if (video) {
+        LOGI("files: video directory query begin path=%s handle=%08X len=%u class=%u restart=%u", f->xbox.c_str(), h, len, cls,
+             restart);
+        logx::Flush();
+    }
     if (cls != 1) {
         LOG_FIRST(8, "NtQueryDirectoryFile: class %u", cls);
         return kInvalidParameter;
@@ -629,13 +652,18 @@ KERNEL_EXPORT(207, NtQueryDirectoryFile, 10) {
         }
         f->next = 0;
         f->listed = true;
+        if (video)
+            LOGI("files: video directory enumerated path=%s pattern=%s disc=%u entries=%zu", f->xbox.c_str(), pat.c_str(),
+                 f->entry ? 1 : 0, f->entry ? f->disc_entries.size() : f->entries.size());
     }
     if (f->next >= (f->entry ? f->disc_entries.size() : f->entries.size())) {
+        if (video) LOGI("files: video directory end path=%s next=%zu", f->xbox.c_str(), f->next);
         IoStatus(iosb, kNoMoreFiles, 0);
         return f->next == 0 ? kNoSuchFile : kNoMoreFiles;
     }
     size_t i = f->next++;
     std::string fname = f->entry ? f->disc_entries[i]->name : f->entries[i].path().filename().string();
+    if (video) LOGI("files: video directory entry path=%s name=%s index=%zu", f->xbox.c_str(), fname.c_str(), i);
     uint32_t need = 0x40 + uint32_t(fname.size());
     if (len < need) return kBufferTooSmall;
     std::memset(HostPtr(out), 0, need);

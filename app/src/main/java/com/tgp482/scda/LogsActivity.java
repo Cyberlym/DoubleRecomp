@@ -1,13 +1,17 @@
 // The logs screen: the newest runtime log (logs/scda_NNN.log) with the boot
-// stage beside it, the last 200 lines on screen, and the share button that
-// hands those lines to any app the user picks (ACTION_SEND, plain text: no
-// FileProvider and no storage permission needed).
+// stage beside it, the latest 2000 lines on screen, and export to public Downloads.
 package com.tgp482.scda;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
 import android.text.method.ScrollingMovementMethod;
 import android.util.TypedValue;
 import android.view.View;
@@ -20,16 +24,25 @@ import android.widget.TextView;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class LogsActivity extends Activity {
 
-    private static final int TAIL = 200;
+    private static final int TAIL = 2000;
+    private static final int WRITE_STORAGE_REQUEST = 42;
     private String mTail = "";
+    private Button mExport;
+    private TextView mExportStatus;
+    private boolean mExportPending;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,7 +69,7 @@ public class LogsActivity extends Activity {
     }
 
     private File newestLog() {
-        File dir = new File(getExternalFilesDir(null), "logs");
+        File dir = logsDir();
         File[] all = dir.listFiles();
         if (all == null) return null;
         File best = null;
@@ -65,6 +78,17 @@ public class LogsActivity extends Activity {
             if (best == null || f.getName().compareTo(best.getName()) > 0) best = f;
         }
         return best;
+    }
+
+    private File logsDir() { return new File(getExternalFilesDir(null), "logs"); }
+
+    private String diagnosticFiles() {
+        File dir = logsDir();
+        File vs = new File(dir, "blit_vs.spv");
+        File fs = new File(dir, "blit_fs.spv");
+        return String.format("Diagnóstico: blit_vs.spv %s, blit_fs.spv %s",
+                vs.isFile() ? (vs.length() + " bytes") : "não gerado",
+                fs.isFile() ? (fs.length() + " bytes") : "não gerado");
     }
 
     private static String tailOf(File log, int lines) {
@@ -117,6 +141,13 @@ public class LogsActivity extends Activity {
         stage.setPadding(0, dp(6), 0, dp(6));
         root.addView(stage, new LinearLayout.LayoutParams(-1, -2));
 
+        TextView diagnostics = new TextView(this);
+        diagnostics.setText(diagnosticFiles());
+        diagnostics.setTextColor(0xFF9FB6C8);
+        diagnostics.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        diagnostics.setPadding(0, 0, 0, dp(6));
+        root.addView(diagnostics, new LinearLayout.LayoutParams(-1, -2));
+
         TextView log = new TextView(this);
         log.setTypeface(Typeface.MONOSPACE);
         log.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
@@ -142,7 +173,98 @@ public class LogsActivity extends Activity {
         p.topMargin = dp(12);
         root.addView(share, p);
 
+        mExport = new Button(this);
+        mExport.setText("EXPORTAR LOG COMPLETA");
+        mExport.setTextColor(0xFFECF0F4);
+        mExport.setAllCaps(false);
+        mExport.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        mExport.setBackground(shape);
+        mExport.setOnClickListener(v -> exportLog());
+        LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(-1, dp(52));
+        ep.topMargin = dp(8);
+        root.addView(mExport, ep);
+
+        mExportStatus = new TextView(this);
+        mExportStatus.setTextColor(0xFF9FB6C8);
+        mExportStatus.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        mExportStatus.setPadding(0, dp(6), 0, 0);
+        root.addView(mExportStatus, new LinearLayout.LayoutParams(-1, -2));
+
         setContentView(root);
+    }
+
+    private void exportLog() {
+        if (Build.VERSION.SDK_INT <= 28
+                && checkSelfPermission("android.permission.WRITE_EXTERNAL_STORAGE")
+                        != PackageManager.PERMISSION_GRANTED) {
+            mExportPending = true;
+            requestPermissions(new String[] {"android.permission.WRITE_EXTERNAL_STORAGE"}, WRITE_STORAGE_REQUEST);
+            return;
+        }
+        File log = newestLog();
+        if (log == null || !log.isFile()) {
+            mExportStatus.setText("Nenhum log completo disponível ainda.");
+            return;
+        }
+        mExport.setEnabled(false);
+        mExportStatus.setText("Exportando o log completo...");
+        new Thread(() -> {
+            String result = exportLogFile(log);
+            runOnUiThread(() -> {
+                mExport.setEnabled(true);
+                mExportStatus.setText(result);
+            });
+        }, "scda-log-export").start();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode != WRITE_STORAGE_REQUEST || !mExportPending) return;
+        mExportPending = false;
+        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) exportLog();
+        else mExportStatus.setText("Permissão recusada; o log não foi exportado.");
+    }
+
+    private String exportLogFile(File source) {
+        String name = "scda_log_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date()) + ".log";
+        Uri pending = null;
+        try {
+            OutputStream out;
+            if (Build.VERSION.SDK_INT >= 29) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, name);
+                values.put(MediaStore.Downloads.MIME_TYPE, "text/plain");
+                values.put(MediaStore.Downloads.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/SCDA Port");
+                values.put(MediaStore.Downloads.IS_PENDING, 1);
+                pending = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (pending == null) return "Não foi possível criar o arquivo em Download/SCDA Port.";
+                out = getContentResolver().openOutputStream(pending);
+                if (out == null) throw new Exception("arquivo de destino indisponível");
+            } else {
+                File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "SCDA Port");
+                if (!dir.exists() && !dir.mkdirs()) throw new Exception("não foi possível criar Download/SCDA Port");
+                out = new FileOutputStream(new File(dir, name));
+            }
+
+            try (FileInputStream in = new FileInputStream(source); OutputStream stream = out) {
+                byte[] buffer = new byte[64 << 10];
+                int n;
+                while ((n = in.read(buffer)) != -1) stream.write(buffer, 0, n);
+                stream.flush();
+            }
+            if (pending != null) {
+                ContentValues ready = new ContentValues();
+                ready.put(MediaStore.Downloads.IS_PENDING, 0);
+                getContentResolver().update(pending, ready, null, null);
+            }
+            return "Log completo salvo em Download/SCDA Port/" + name;
+        } catch (Exception e) {
+            if (pending != null) getContentResolver().delete(pending, null, null);
+            return "Falha ao exportar o log: " + e.getMessage();
+        }
     }
 
     // also used by the launcher's fail dialog

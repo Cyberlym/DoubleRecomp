@@ -11,6 +11,10 @@
 #include "xdk/d3d8.h"
 #include "xdk/hle.h"
 
+#ifndef SYM_D3DDevice_SetPalette
+#define SYM_D3DDevice_SetPalette FFFFFE02
+#endif
+
 using namespace kernel;
 
 namespace d3d {
@@ -41,6 +45,7 @@ constexpr uint32_t kDevPush = 0x00, kDevThreshold = 0x04, kDevBaseVertex = 0x1C,
 gpu::State g_state;
 std::unique_ptr<gpu::Backend> g_backend;
 std::recursive_mutex g_lock;
+std::array<uint32_t, 4> g_palettes{};
 
 std::unordered_map<uint32_t, std::shared_ptr<gpu::VertexShader>> g_vs;
 std::unordered_map<uint32_t, std::shared_ptr<gpu::PixelShader>> g_ps;
@@ -223,6 +228,10 @@ HLE_STDCALL(Direct3D_CreateDevice, 6) {
         gpu::g_backend_state = up ? 1 : 2;
         if (!up) LOGE("d3d: renderer init failed");
         g_backend = gpu::CreateThreadedBackend(std::move(g_backend));
+    }
+    for (uint32_t& palette : g_palettes) {
+        if (palette) CallGuest(ctx, kInternalRelease, {palette});
+        palette = 0;
     }
     g_state = gpu::State{};
     g_state.viewport = {0, 0, w, h, 0.0f, 1.0f};
@@ -606,6 +615,22 @@ HLE_STDCALL(D3DDevice_SetTexture, 2) {
     return 0;
 }
 
+// SetPalette(stage, palette): the colours a P8 texture of the stage looks up.
+// Some image configs do not import this XDK entry point; the fallback symbol keeps
+// the renderer state available for images that do.
+HLE_STDCALL(D3DDevice_SetPalette, 2) {
+    std::lock_guard<std::recursive_mutex> lock(g_lock);
+    uint32_t stage = a[0] & 3, pal = a[1];
+    uint32_t old = g_palettes[stage];
+    if (pal != old) {
+        if (pal) CallGuest(ctx, kInternalAddRef, {pal});
+        g_palettes[stage] = pal;
+        if (old) CallGuest(ctx, kInternalRelease, {old});
+    }
+    g_state.palettes[stage] = pal;
+    return 0;
+}
+
 // SwitchTexture(method, data, format), fastcall: a swizzled texture of the bound one's shape replaces it. It is
 // bound through a header of the stage's own holding the bound texture's fields with the new data and format.
 HLE_FASTCALL(D3DDevice_SwitchTexture, 1) {
@@ -655,6 +680,8 @@ HLE_STDCALL(D3DDevice_SetIndices, 2) {
 HLE_STDCALL(D3DDevice_CreateVertexShader, 4) {
     std::lock_guard<std::recursive_mutex> lock(g_lock);
     uint32_t decl = a[0], func = a[1], out = a[2];
+    LOGI("d3d: CreateVertexShader begin decl=%08X func=%08X out=%08X", decl, func, out);
+    logx::Flush();
     auto vs = std::make_shared<gpu::VertexShader>();
     if (decl) {
         for (uint32_t i = 0; i < 1024; i++) {
@@ -676,6 +703,8 @@ HLE_STDCALL(D3DDevice_CreateVertexShader, 4) {
     W32(out, vs->handle);
     LOG_FIRST(64, "d3d: vertex shader %08X, %zu decl tokens, %zu instructions, type %X", vs->handle, vs->decl.size(),
               vs->program.size() / 4, vs->program_type);
+    LOGI("d3d: CreateVertexShader complete handle=%08X", vs->handle);
+    logx::Flush();
     return 0;
 }
 
@@ -743,12 +772,16 @@ HLE_STDCALL(D3DDevice_SetShaderConstantMode, 1) { return 0; }
 
 HLE_STDCALL(D3DDevice_CreatePixelShader, 2) {
     std::lock_guard<std::recursive_mutex> lock(g_lock);
+    LOGI("d3d: CreatePixelShader begin def=%08X out=%08X", a[0], a[1]);
+    logx::Flush();
     auto ps = std::make_shared<gpu::PixelShader>();
     std::memcpy(ps->def, HostPtr(a[0]), sizeof(ps->def));
     uint32_t rec = mem::AllocSystem(16, 16);
     ps->handle = rec;
     g_ps[rec] = ps;
     W32(a[1], rec);
+    LOGI("d3d: CreatePixelShader complete handle=%08X", rec);
+    logx::Flush();
     return 0;
 }
 
