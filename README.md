@@ -5,7 +5,7 @@ Port nativo de Splinter Cell: Double Agent (Xbox) para Android ARM64, via recomp
 estática do XBE ([SCDA-XBERecomp](https://github.com/TGP482/SCDA-XBERecomp)).
 Sem emuladores, sem Wine, sem Box64, sem Turnip: o código do jogo roda AOT como
 biblioteca nativa, com renderização Vulkan direta.
-
+# incomplete port
 ## Arquitetura
 
 ```
