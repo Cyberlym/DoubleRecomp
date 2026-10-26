@@ -1,4 +1,5 @@
 # SCDA Port — Port nativo Android
+<img width="1600" height="720" alt="1000014271" src="https://github.com/user-attachments/assets/242a8e0b-4582-4ef4-9b64-4dd008bc5a92" />
 
 Port nativo de Splinter Cell: Double Agent (Xbox) para Android ARM64, via recompilação
 estática do XBE ([SCDA-XBERecomp](https://github.com/TGP482/SCDA-XBERecomp)).
