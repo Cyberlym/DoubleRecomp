@@ -104,3 +104,5 @@ A primeira linha do log identifica o build (`shell: SCDA Port 0.2.3 host startin
 O launcher diagnostica sozinho: se o jogo não chegar ao primeiro frame, o diálogo da
 próxima abertura mostra o último estágio do boot (`logs/boot_stage.txt`) e o botão
 compartilha o log (`logs/scda_NNN.log`).
+
+**credits for RanggaCasper**
